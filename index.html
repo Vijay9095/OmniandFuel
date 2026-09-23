@@ -23,6 +23,7 @@
     --mismatch-bg:#fdeceb;
     --mismatch-text:#a3241a;
     --mismatch-border:#c23b2e;
+    --tally-text:#8a5a00;
     --auto-bg:#f2f2ef;
     --auto-text:#54534d;
     --btn-bg:#161615;
@@ -52,6 +53,7 @@
       --mismatch-bg:#301412;
       --mismatch-text:#ff8a7a;
       --mismatch-border:#ff6b57;
+      --tally-text:#e3b34c;
       --auto-bg:#1e1e1b;
       --auto-text:#c8c7c0;
       --btn-bg:#f4f4f2;
@@ -75,6 +77,7 @@
     --mismatch-bg:#301412;
     --mismatch-text:#ff8a7a;
     --mismatch-border:#ff6b57;
+    --tally-text:#e3b34c;
     --auto-bg:#1e1e1b;
     --auto-text:#c8c7c0;
     --btn-bg:#f4f4f2;
@@ -273,7 +276,7 @@
 
   .summary-grid{
     display:grid;
-    grid-template-columns:repeat(4,1fr);
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
     gap:12px;
     margin-bottom:20px;
   }
@@ -417,6 +420,49 @@
   :root[data-theme="dark"] .badge.match{ color:#7fd07f; }
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .badge.match{ color:#7fd07f; } }
   .badge.mismatch{ color:var(--mismatch-text); }
+  .badge.tallied{ color:var(--tally-text); }
+  .status-cell{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    flex-wrap:wrap;
+  }
+  .resolve-check{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    font-size:10.5px;
+    font-family:var(--mono);
+    color:var(--text-muted);
+    letter-spacing:0.02em;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  .resolve-check input[type="checkbox"]{
+    width:13px;
+    height:13px;
+    cursor:pointer;
+    accent-color:var(--border-strong);
+  }
+  .status-cell select{
+    width:auto;
+    max-width:210px;
+    font-size:11px;
+    padding:3px 6px;
+    border:1px solid var(--border);
+    border-radius:2px;
+    background:var(--input-bg);
+    color:var(--text);
+    font-family:var(--sans);
+  }
+  table.table-bordered.dataTable tbody tr.data-row.resolved td{
+    color:var(--text-muted);
+    background:var(--auto-bg);
+  }
+  table.table-bordered.dataTable tbody tr.data-row.resolved:hover td{ filter:none; }
+  table.table-bordered.dataTable tbody tr.data-row.resolved td.diff-cell{ font-weight:600; }
+  table.table-bordered.dataTable tbody tr.data-row.resolved .badge.mismatch{ opacity:0.55; }
   .tag-auto{
     display:inline-block;
     font-size:9.5px;
@@ -511,6 +557,7 @@
   }
   .iw-table tbody tr:nth-child(even){ background:var(--stripe); }
   .iw-table tr.iw-mismatch td{ background:var(--mismatch-bg); color:var(--mismatch-text); }
+  .iw-table tr.iw-tallied td{ background:var(--auto-bg); color:var(--tally-text); }
   .iw-idx{ width:24px; text-align:center; color:var(--text-muted); font-family:var(--mono); }
   .iw-num, .iw-num-h{ text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .iw-badge{
@@ -526,6 +573,7 @@
   :root[data-theme="dark"] .iw-badge.ok{ color:#7fd07f; }
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .iw-badge.ok{ color:#7fd07f; } }
   .iw-badge.bad{ color:var(--mismatch-text); }
+  .iw-badge.tallied{ color:var(--tally-text); }
   .iw-tag{
     display:inline-block;
     font-size:9px;
@@ -689,7 +737,7 @@
 </div>
 
 <footer>
-  Matching runs entirely in this browser tab — files are not uploaded anywhere. Vehicles are matched between the two reports using the last 4 digits of the vehicle number found in the Remarks/Description text; entries with no vehicle reference are reconciled against any vehicle's leftover balance where the amounts line up exactly, and anything left over is listed under manual review.
+   <center>@developer Vicky</center>
 </footer>
 
 <div class="toast" id="toast"></div>
@@ -1117,7 +1165,8 @@ if (typeof module !== 'undefined'){
     sortDir:1,
     searchQuery:'',
     mismatchOnly:false,
-    openDetailKeys: new Set()
+    openDetailKeys: new Set(),
+    resolvedKeys: new Set()   // vehicleKeys of Mismatch rows the user has ticked as checked/accounted-for
   };
 
   const collator = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' });
@@ -1129,6 +1178,22 @@ if (typeof module !== 'undefined'){
   }
   function fmtNum(n){
     return (n||0).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+
+  /* "Resolved" checkbox never edits the underlying reconciliation data —
+     v.diff / v.status always keep the real computed numbers so re-checking
+     the box, re-sorting, or a fresh reconcile is never lossy. These three
+     helpers are the single place that turns a tallied row into what the
+     table/exports actually display: Difference shown as 0.00 (the real
+     figure is kept in the title tooltip) and Status shown as "Tallied". */
+  function isTallied(v){
+    return v.status === 'Mismatch' && state.resolvedKeys.has(v.vehicleKey);
+  }
+  function displayDiff(v){
+    return isTallied(v) ? 0 : v.diff;
+  }
+  function displayStatusLabel(v){
+    return isTallied(v) ? 'Tallied' : v.status;
   }
 
   function toast(msg){
@@ -1168,9 +1233,12 @@ if (typeof module !== 'undefined'){
       alignment:{ horizontal:'center', vertical:'center', wrapText:true }
     };
   }
-  function xlBodyStyle(mismatch, stripe){
+  function xlBodyStyle(mismatch, stripe, tallied){
     const s = { border: XL_BOX };
-    if (mismatch){
+    if (tallied){
+      s.fill = { patternType:'solid', fgColor:{ rgb:'FFF3D9' } };
+      s.font = { color:{ rgb:'8A5A00' } };
+    } else if (mismatch){
       s.fill = { patternType:'solid', fgColor:{ rgb:'FDECEB' } };
       s.font = { color:{ rgb:'A3241A' } };
     } else if (stripe){
@@ -1178,8 +1246,8 @@ if (typeof module !== 'undefined'){
     }
     return s;
   }
-  function xlNumStyle(mismatch, stripe){
-    const s = xlBodyStyle(mismatch, stripe);
+  function xlNumStyle(mismatch, stripe, tallied){
+    const s = xlBodyStyle(mismatch, stripe, tallied);
     s.numFmt = '#,##0.00';
     s.alignment = { horizontal:'right' };
     return s;
@@ -1283,6 +1351,7 @@ if (typeof module !== 'undefined'){
     }
     state.result = CORE.reconcile(assetSide.parsed.rows, accountSide.parsed.rows);
     state.openDetailKeys = new Set();
+    state.resolvedKeys = new Set();
     document.getElementById('results').classList.add('show');
     renderAll();
     document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1297,10 +1366,98 @@ if (typeof module !== 'undefined'){
     renderUnassigned();
   }
 
+  /* ---------------- Manual assignment: unmatched Omni entries -> a real vehicle ----------------
+     Auto-matching only works when Remarks carries a vehicle plate/last-4, or when a
+     leftover amount lines up exactly. Anything left over — plain-text remarks, or a
+     plate that isn't in the asset file at all — has to be pointed at the right vehicle
+     by hand. These helpers do that pointing, then recompute that vehicle's own totals
+     (never the raw uploaded numbers) so Total Asset Amount stops showing 0 once the
+     entry is actually attached to a vehicle that has real asset data. */
+
+  function knownVehicleOptionsHtml(excludeKey){
+    return state.result.vehicles
+      .filter(v=>v.knownVehicle && v.vehicleKey!==excludeKey)
+      .slice()
+      .sort((a,b)=>collator.compare(a.vehicleNo,b.vehicleNo))
+      .map(v=>`<option value="${escAttr(v.vehicleKey)}">${esc(v.vehicleNo)}</option>`)
+      .join('');
+  }
+
+  function recalcVehicleTotals(v){
+    v.omniTotal = Math.round(v.omniEntries.reduce((s,e)=>s+e.debit,0)*100)/100;
+    v.diff = Math.round((v.assetTotal - v.omniTotal)*100)/100;
+    v.status = Math.abs(v.diff) < 0.01 ? 'Match' : 'Mismatch';
+  }
+
+  function recomputeDerivedTotals(){
+    const r = state.result;
+    r.totals.unassignedAmount = Math.round(r.unassigned.reduce((s,x)=>s+x.debit,0)*100)/100;
+    r.totals.unassignedCount = r.unassigned.length;
+    r.totals.mismatchCount = r.vehicles.filter(v=>v.status==='Mismatch').length;
+    r.totals.vehicleCount = r.vehicles.length;
+  }
+
+  /* Row from the "Unmatched Omni entries" pool (no vehicle reference in Remarks at all) —
+     attach it to the vehicle the user picked and drop it out of the unassigned list. */
+  function assignUnassignedToVehicle(idx, targetKey){
+    const list = state.result.unassigned;
+    const entry = list[idx];
+    if (!entry) return;
+    const target = state.result.vehicles.find(v=>v.vehicleKey===targetKey);
+    if (!target){ toast('Choose a vehicle first'); return; }
+    target.omniEntries.push(Object.assign({}, entry, { matchType:'manual' }));
+    recalcVehicleTotals(target);
+    list.splice(idx,1);
+    recomputeDerivedTotals();
+    toast('Added to ' + target.vehicleNo);
+    renderAll();
+  }
+
+  /* Pseudo-vehicle row like "•••• 0339 (not in asset file)" — its Omni entries did
+     carry a plate/last-4, but that plate isn't in the asset master, so it can never
+     show a real Total Asset Amount on its own. Merging it into the correct real
+     vehicle moves its Omni entries there and removes the pseudo row entirely. */
+  function mergeUnknownVehicleIntoKnown(unknownKey, targetKey){
+    const vehicles = state.result.vehicles;
+    const idx = vehicles.findIndex(v=>v.vehicleKey===unknownKey);
+    if (idx===-1) return;
+    const pseudo = vehicles[idx];
+    const target = vehicles.find(v=>v.vehicleKey===targetKey);
+    if (!target){ toast('Choose a vehicle first'); return; }
+    pseudo.omniEntries.forEach(e=> target.omniEntries.push(Object.assign({}, e, { matchType:'manual' })));
+    recalcVehicleTotals(target);
+    vehicles.splice(idx,1);
+    state.resolvedKeys.delete(unknownKey);
+    state.openDetailKeys.delete(unknownKey);
+    recomputeDerivedTotals();
+    toast('Merged into ' + target.vehicleNo);
+    renderAll();
+  }
+
+  /* Sum of |diff| across Mismatch rows, split into what's still pending vs
+     what the user has ticked as "Resolved" via the checkbox next to the
+     Status badge. Ticking a row subtracts its diff from the pending figure
+     shown in the summary bar — nothing here changes the underlying report,
+     it's purely a manual-review tracker. */
+  function computeMismatchStats(){
+    const mismatches = state.result.vehicles.filter(v=>v.status==='Mismatch');
+    const total = mismatches.reduce((s,v)=>s+Math.abs(v.diff),0);
+    const resolvedList = mismatches.filter(v=>state.resolvedKeys.has(v.vehicleKey));
+    const resolvedTotal = resolvedList.reduce((s,v)=>s+Math.abs(v.diff),0);
+    return {
+      total: Math.round(total*100)/100,
+      resolvedTotal: Math.round(resolvedTotal*100)/100,
+      pending: Math.round((total-resolvedTotal)*100)/100,
+      count: mismatches.length,
+      resolvedCount: resolvedList.length
+    };
+  }
+
   function renderSummary(){
     const r = state.result;
     const grid = document.getElementById('summaryGrid');
     const overallBad = Math.abs(r.totals.overallDiff) > 0.01;
+    const ms = computeMismatchStats();
     grid.innerHTML = `
       <div class="stat">
         <div class="k">Total Asset Amount</div>
@@ -1319,6 +1476,11 @@ if (typeof module !== 'undefined'){
         <div class="k">Unmatched (manual review)</div>
         <div class="v">${fmtMoney(r.totals.unassignedAmount)}</div>
         <div class="v2">${r.totals.unassignedCount} entr${r.totals.unassignedCount===1?'y':'ies'} with no vehicle match</div>
+      </div>
+      <div class="stat ${ms.pending > 0.004 ? 'bad' : ''}">
+        <div class="k">Mismatch Amount (Pending)</div>
+        <div class="v">${fmtMoney(ms.pending)}</div>
+        <div class="v2">${ms.resolvedCount} of ${ms.count} checked · ${fmtMoney(ms.resolvedTotal)} removed</div>
       </div>`;
   }
 
@@ -1341,7 +1503,7 @@ if (typeof module !== 'undefined'){
     if (state.mismatchOnly) list = list.filter(v=>v.status==='Mismatch');
     if (state.searchQuery){
       const q = state.searchQuery.toLowerCase();
-      list = list.filter(v=> v.vehicleNo.toLowerCase().includes(q) || v.status.toLowerCase().includes(q));
+      list = list.filter(v=> v.vehicleNo.toLowerCase().includes(q) || v.status.toLowerCase().includes(q) || displayStatusLabel(v).toLowerCase().includes(q));
     }
     const key = state.sortKey, dir = state.sortDir;
     list.sort((a,b)=>{
@@ -1383,22 +1545,41 @@ if (typeof module !== 'undefined'){
     let html = '';
     list.forEach((v,i)=>{
       const mismatchClass = v.status==='Mismatch' ? 'mismatch' : '';
-      html += `<tr class="data-row ${mismatchClass}" data-key="${escAttr(v.vehicleKey)}"><td class="expand-cell">${i+1}</td>`;
+      const resolvedClass = state.resolvedKeys.has(v.vehicleKey) ? 'resolved' : '';
+      html += `<tr class="data-row ${mismatchClass} ${resolvedClass}" data-key="${escAttr(v.vehicleKey)}"><td class="expand-cell">${i+1}</td>`;
       visibleCols.forEach(c=>{
         if (c.key === 'assetVehicleNo'){
           html += `<td>${esc(v.vehicleNo)}</td>`;
         } else if (c.key === 'omniVehicleNo'){
-          html += v.knownVehicle
-            ? `<td>${esc(v.vehicleNo)}</td>`
-            : `<td><span class="tag-auto">unknown plate</span></td>`;
+          if (v.knownVehicle){
+            html += `<td>${esc(v.vehicleNo)}</td>`;
+          } else {
+            const opts = knownVehicleOptionsHtml(v.vehicleKey);
+            html += `<td><div class="status-cell"><span class="tag-auto">unknown plate</span>`
+                  + `<select class="mergeSelect" data-key="${escAttr(v.vehicleKey)}"><option value="">— assign to vehicle —</option>${opts}</select>`
+                  + `<label class="resolve-check"><input type="checkbox" class="mergeCb" data-key="${escAttr(v.vehicleKey)}"> Assign</label>`
+                  + `</div></td>`;
+          }
         } else if (c.key === 'assetTotal'){
           html += `<td class="num">${fmtNum(v.assetTotal)}</td>`;
         } else if (c.key === 'omniTotal'){
           html += `<td class="num">${fmtNum(v.omniTotal)}</td>`;
         } else if (c.key === 'diff'){
-          html += `<td class="num">${fmtNum(v.diff)}</td>`;
+          if (isTallied(v)){
+            html += `<td class="num diff-cell" title="Original difference: ${fmtNum(v.diff)} — zeroed out after marking Resolved">${fmtNum(0)}</td>`;
+          } else {
+            html += `<td class="num diff-cell">${fmtNum(v.diff)}</td>`;
+          }
         } else if (c.key === 'status'){
-          html += `<td><span class="badge ${v.status==='Match'?'match':'mismatch'}">${v.status}</span></td>`;
+          if (v.status === 'Match'){
+            html += `<td><span class="badge match">Match</span></td>`;
+          } else {
+            const checked = state.resolvedKeys.has(v.vehicleKey) ? 'checked' : '';
+            const badgeClass = isTallied(v) ? 'tallied' : 'mismatch';
+            html += `<td><div class="status-cell"><span class="badge ${badgeClass}">${displayStatusLabel(v)}</span>`
+                  + `<label class="resolve-check"><input type="checkbox" class="resolveCb" data-key="${escAttr(v.vehicleKey)}" ${checked}> Resolved</label>`
+                  + `</div></td>`;
+          }
         }
       });
       html += '</tr>';
@@ -1413,6 +1594,49 @@ if (typeof module !== 'undefined'){
         else state.openDetailKeys.add(key);
         const dr = tbody.querySelector(`tr.detail-row[data-detail-for="${cssEsc(key)}"]`);
         if (dr) dr.classList.toggle('open');
+      });
+    });
+
+    /* Resolve checkbox: ticking it marks that vehicle's mismatch as
+       accounted-for and subtracts its amount from the "Mismatch Amount
+       (Pending)" summary stat. Clicks on the checkbox/label must not
+       bubble up and toggle the row's detail-expand. */
+    tbody.querySelectorAll('.resolveCb').forEach(cb=>{
+      cb.addEventListener('click', e=> e.stopPropagation());
+      cb.addEventListener('change', function(){
+        const key = this.dataset.key;
+        if (this.checked) state.resolvedKeys.add(key);
+        else state.resolvedKeys.delete(key);
+        const tr = this.closest('tr.data-row');
+        if (tr) tr.classList.toggle('resolved', this.checked);
+        renderSummary();
+      });
+    });
+    tbody.querySelectorAll('.resolve-check').forEach(lbl=>{
+      lbl.addEventListener('click', e=> e.stopPropagation());
+    });
+
+    /* Unknown-plate rows ("•••• 0339 — not in asset file"): pick the real
+       vehicle from the dropdown, tick "Assign", and its Omni entries move
+       onto that vehicle — the pseudo row disappears and Total Asset Amount
+       stops showing 0 because it's now pulling from a real vehicle. */
+    tbody.querySelectorAll('.mergeSelect').forEach(sel=>{
+      sel.addEventListener('click', e=> e.stopPropagation());
+      sel.addEventListener('change', e=> e.stopPropagation());
+    });
+    tbody.querySelectorAll('.mergeCb').forEach(cb=>{
+      cb.addEventListener('click', e=> e.stopPropagation());
+      cb.addEventListener('change', function(){
+        const key = this.dataset.key;
+        if (!this.checked) return;
+        const sel = tbody.querySelector(`.mergeSelect[data-key="${cssEsc(key)}"]`);
+        const targetKey = sel ? sel.value : '';
+        if (!targetKey){
+          toast('Select the vehicle to assign this to first');
+          this.checked = false;
+          return;
+        }
+        mergeUnknownVehicleIntoKnown(key, targetKey);
       });
     });
   }
@@ -1451,9 +1675,10 @@ if (typeof module !== 'undefined'){
     const sec = document.getElementById('unassignedSection');
     const list = state.result.unassigned;
     if (!list.length){ sec.innerHTML = ''; return; }
+    const vehicleOpts = knownVehicleOptionsHtml();
     sec.innerHTML = `
       <div class="section-title">Unmatched Omni entries — needs manual review <span class="count">(${list.length})</span></div>
-      <div class="helptext">These entries have no vehicle reference in Remarks, and no combination of them lined up exactly with a leftover balance on any vehicle. Check them manually.</div>
+      <div class="helptext">These entries have no vehicle reference in Remarks, and no combination of them lined up exactly with a leftover balance on any vehicle. Pick the correct vehicle and tick "Add" to move an entry into the main table, or check them manually.</div>
       <div class="mini-toolbar">
         <button class="tbtn" id="uCopyBtn">Copy</button>
         <button class="tbtn" id="uExcelBtn">Excel</button>
@@ -1463,13 +1688,37 @@ if (typeof module !== 'undefined'){
       <div id="unassignedCapture">
         <div class="table-wrap">
           <table class="table table-bordered dataTable">
-            <thead><tr><th>Date</th><th>Description</th><th>Remarks</th><th>Amount</th></tr></thead>
+            <thead><tr><th>Date</th><th>Description</th><th>Remarks</th><th>Amount</th><th>Assign to vehicle</th></tr></thead>
             <tbody>
-              ${list.map(r=>`<tr><td>${esc(r.transactionDate||'')}</td><td>${esc(r.description||'')}</td><td>${esc(r.remarks||'')}</td><td class="num">${fmtNum(r.debit)}</td></tr>`).join('')}
+              ${list.map((r,i)=>`<tr>
+                <td>${esc(r.transactionDate||'')}</td>
+                <td>${esc(r.description||'')}</td>
+                <td>${esc(r.remarks||'')}</td>
+                <td class="num">${fmtNum(r.debit)}</td>
+                <td><div class="status-cell">
+                  <select class="assignSelect" data-idx="${i}"><option value="">— select vehicle —</option>${vehicleOpts}</select>
+                  <label class="resolve-check"><input type="checkbox" class="assignCb" data-idx="${i}"> Add</label>
+                </div></td>
+              </tr>`).join('')}
             </tbody>
           </table>
         </div>
       </div>`;
+
+    sec.querySelectorAll('.assignCb').forEach(cb=>{
+      cb.addEventListener('change', function(){
+        if (!this.checked) return;
+        const idx = Number(this.dataset.idx);
+        const sel = sec.querySelector(`.assignSelect[data-idx="${idx}"]`);
+        const targetKey = sel ? sel.value : '';
+        if (!targetKey){
+          toast('Select the vehicle to add this to first');
+          this.checked = false;
+          return;
+        }
+        assignUnassignedToVehicle(idx, targetKey);
+      });
+    });
 
     document.getElementById('uCopyBtn').addEventListener('click', function(){
       const header = ['Date','Description','Remarks','Amount'].join('\t');
@@ -1547,15 +1796,15 @@ if (typeof module !== 'undefined'){
 
     const theadHtml = '<th class="iw-idx">#</th>' + visibleCols.map(c=>`<th>${esc(c.label)}</th>`).join('');
     const rowsHtml = list.map((v,i)=>{
-      const rowClass = v.status==='Mismatch' ? ' class="iw-mismatch"' : '';
+      const rowClass = isTallied(v) ? ' class="iw-tallied"' : (v.status==='Mismatch' ? ' class="iw-mismatch"' : '');
       let cells = `<td class="iw-idx">${i+1}</td>`;
       visibleCols.forEach(c=>{
         if (c.key==='assetVehicleNo') cells += `<td>${esc(v.vehicleNo)}</td>`;
         else if (c.key==='omniVehicleNo') cells += v.knownVehicle ? `<td>${esc(v.vehicleNo)}</td>` : `<td><span class="iw-tag">unknown plate</span></td>`;
         else if (c.key==='assetTotal') cells += `<td class="iw-num">${fmtNum(v.assetTotal)}</td>`;
         else if (c.key==='omniTotal') cells += `<td class="iw-num">${fmtNum(v.omniTotal)}</td>`;
-        else if (c.key==='diff') cells += `<td class="iw-num">${fmtNum(v.diff)}</td>`;
-        else if (c.key==='status') cells += `<td><span class="iw-badge ${v.status==='Match'?'ok':'bad'}">${esc(v.status)}</span></td>`;
+        else if (c.key==='diff') cells += `<td class="iw-num">${fmtNum(displayDiff(v))}</td>`;
+        else if (c.key==='status') cells += `<td><span class="iw-badge ${v.status==='Match'?'ok':(isTallied(v)?'tallied':'bad')}">${esc(displayStatusLabel(v))}</span></td>`;
       });
       return `<tr${rowClass}>${cells}</tr>`;
     }).join('') || `<tr><td colspan="${visibleCols.length+1}" style="text-align:center;color:var(--text-muted);padding:16px;">No vehicles match the current filter.</td></tr>`;
@@ -1696,8 +1945,8 @@ if (typeof module !== 'undefined'){
         else if (c.key==='omniVehicleNo') cells.push(v.knownVehicle ? v.vehicleNo : 'Unknown plate');
         else if (c.key==='assetTotal') cells.push(fmtNum(v.assetTotal));
         else if (c.key==='omniTotal') cells.push(fmtNum(v.omniTotal));
-        else if (c.key==='diff') cells.push(fmtNum(v.diff));
-        else if (c.key==='status') cells.push(v.status);
+        else if (c.key==='diff') cells.push(fmtNum(displayDiff(v)));
+        else if (c.key==='status') cells.push(displayStatusLabel(v));
       });
       return cells.join('\t');
     });
@@ -1738,15 +1987,16 @@ if (typeof module !== 'undefined'){
     // Body rows — same data as the on-screen table, each cell boxed with a border
     list.forEach((v,i)=>{
       const mismatch = v.status === 'Mismatch';
+      const tallied = isTallied(v);
       const stripe = i % 2 === 1;
-      const row = [ xlCell(i+1, xlBodyStyle(mismatch, stripe)) ];
+      const row = [ xlCell(i+1, xlBodyStyle(mismatch, stripe, tallied)) ];
       visibleCols.forEach(c=>{
-        if (c.key==='assetVehicleNo') row.push(xlCell(v.vehicleNo, xlBodyStyle(mismatch, stripe)));
-        else if (c.key==='omniVehicleNo') row.push(xlCell(v.knownVehicle ? v.vehicleNo : 'Unknown plate', xlBodyStyle(mismatch, stripe)));
-        else if (c.key==='assetTotal') row.push(xlCell(v.assetTotal, xlNumStyle(mismatch, stripe)));
-        else if (c.key==='omniTotal') row.push(xlCell(v.omniTotal, xlNumStyle(mismatch, stripe)));
-        else if (c.key==='diff') row.push(xlCell(v.diff, xlNumStyle(mismatch, stripe)));
-        else if (c.key==='status') row.push(xlCell(v.status, xlBodyStyle(mismatch, stripe)));
+        if (c.key==='assetVehicleNo') row.push(xlCell(v.vehicleNo, xlBodyStyle(mismatch, stripe, tallied)));
+        else if (c.key==='omniVehicleNo') row.push(xlCell(v.knownVehicle ? v.vehicleNo : 'Unknown plate', xlBodyStyle(mismatch, stripe, tallied)));
+        else if (c.key==='assetTotal') row.push(xlCell(v.assetTotal, xlNumStyle(mismatch, stripe, tallied)));
+        else if (c.key==='omniTotal') row.push(xlCell(v.omniTotal, xlNumStyle(mismatch, stripe, tallied)));
+        else if (c.key==='diff') row.push(xlCell(displayDiff(v), xlNumStyle(mismatch, stripe, tallied)));
+        else if (c.key==='status') row.push(xlCell(displayStatusLabel(v), xlBodyStyle(mismatch, stripe, tallied)));
       });
       rows.push(row);
     });
@@ -1800,12 +2050,12 @@ if (typeof module !== 'undefined'){
         else if (c.key==='omniVehicleNo') row.push(v.knownVehicle ? v.vehicleNo : 'Unknown plate');
         else if (c.key==='assetTotal') row.push(fmtNum(v.assetTotal));
         else if (c.key==='omniTotal') row.push(fmtNum(v.omniTotal));
-        else if (c.key==='diff') row.push(fmtNum(v.diff));
-        else if (c.key==='status') row.push(v.status);
+        else if (c.key==='diff') row.push(fmtNum(displayDiff(v)));
+        else if (c.key==='status') row.push(displayStatusLabel(v));
       });
       return row;
     });
-    const statusByRow = list.map(v=>v.status);
+    const statusByRow = list.map(v=> isTallied(v) ? 'Tallied' : v.status);
 
     doc.autoTable({
       head, body,
@@ -1816,6 +2066,9 @@ if (typeof module !== 'undefined'){
         if (data.section === 'body' && statusByRow[data.row.index] === 'Mismatch'){
           data.cell.styles.fillColor = [253, 236, 235];
           data.cell.styles.textColor = [163, 36, 26];
+        } else if (data.section === 'body' && statusByRow[data.row.index] === 'Tallied'){
+          data.cell.styles.fillColor = [255, 243, 217];
+          data.cell.styles.textColor = [138, 90, 0];
         }
       }
     });
