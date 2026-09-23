@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MM Roadways — Vehicle Advance Tally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#f6f6f4;
+    --panel-2:#efefec;
+    --border:#d6d6d2;
+    --border-strong:#171717;
+    --text:#161615;
+    --text-muted:#63625d;
+    --header-bg:#0e0e0d;
+    --header-text:#f7f7f5;
+    --stripe:#fafaf8;
+    --row-hover:#f0f0ee;
+    --mismatch-bg:#fdeceb;
+    --mismatch-text:#a3241a;
+    --mismatch-border:#c23b2e;
+    --auto-bg:#f2f2ef;
+    --auto-text:#54534d;
+    --btn-bg:#161615;
+    --btn-text:#ffffff;
+    --btn-bg-hover:#333331;
+    --input-bg:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.06);
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a0a09;
+      --panel:#151513;
+      --panel-2:#1b1b18;
+      --border:#333330;
+      --border-strong:#e9e9e6;
+      --header-bg:#000000;
+      --header-text:#f4f4f2;
+      --text:#efeeea;
+      --text-muted:#a3a29c;
+      --stripe:#121210;
+      --row-hover:#1d1d1a;
+      --mismatch-bg:#301412;
+      --mismatch-text:#ff8a7a;
+      --mismatch-border:#ff6b57;
+      --auto-bg:#1e1e1b;
+      --auto-text:#c8c7c0;
+      --btn-bg:#f4f4f2;
+      --btn-text:#0a0a09;
+      --btn-bg-hover:#d8d8d3;
+      --input-bg:#141412;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0a09;
+    --panel:#151513;
+    --panel-2:#1b1b18;
+    --border:#333330;
+    --border-strong:#e9e9e6;
+    --header-bg:#000000;
+    --header-text:#f4f4f2;
+    --text:#efeeea;
+    --text-muted:#a3a29c;
+    --stripe:#121210;
+    --row-hover:#1d1d1a;
+    --mismatch-bg:#301412;
+    --mismatch-text:#ff8a7a;
+    --mismatch-border:#ff6b57;
+    --auto-bg:#1e1e1b;
+    --auto-text:#c8c7c0;
+    --btn-bg:#f4f4f2;
+    --btn-text:#0a0a09;
+    --btn-bg-hover:#d8d8d3;
+    --input-bg:#141412;
+  }
+  html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .topbar{
+    background:var(--header-bg);
+    color:var(--header-text);
+    padding:18px env(safe-area-inset-top,0px);
+    padding-left:max(20px, env(safe-area-inset-left,0px));
+    padding-right:max(20px, env(safe-area-inset-right,0px));
+    padding-top:calc(16px + env(safe-area-inset-top,0px));
+  }
+  .topbar-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .topbar-mark{
+    font-family:var(--mono);
+    font-size:19px;
+    letter-spacing:0.02em;
+    font-weight:600;
+    border:1px solid var(--header-text);
+    padding:2px 7px;
+    border-radius:2px;
+  }
+  .topbar-credit{
+    margin-left:auto;
+    align-self:center;
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.02em;
+    color:#c8c7c2;
+    white-space:nowrap;
+  }
+  .topbar h1{
+    font-size:16px;
+    margin:0;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+  .topbar .sub{
+    color:#c8c7c2;
+    font-size:12.5px;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:24px max(20px, env(safe-area-inset-right,0px)) 60px max(20px, env(safe-area-inset-left,0px));
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:3px;
+  }
+  .upload-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:16px;
+  }
+  @media (max-width:700px){
+    .upload-grid{ grid-template-columns:1fr; }
+  }
+  .upload-card{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-top:3px solid var(--border-strong);
+    border-radius:2px;
+    padding:18px 16px 16px;
+  }
+  .upload-tab{
+    position:absolute;
+    top:-11px;
+    left:14px;
+    background:var(--border-strong);
+    color:var(--bg);
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    padding:2px 8px;
+    border-radius:2px;
+  }
+  .field-label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--text-muted);
+    letter-spacing:0.02em;
+    margin:0 0 6px;
+  }
+  select, input[type="text"]{
+    width:100%;
+    font-family:var(--sans);
+    font-size:13.5px;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:2px;
+    background:var(--input-bg);
+    color:var(--text);
+  }
+  select:focus, input:focus, button:focus-visible{
+    outline:2px solid var(--border-strong);
+    outline-offset:1px;
+  }
+  .file-row{
+    margin-top:12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .file-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    border:none;
+    padding:9px 14px;
+    border-radius:2px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .file-btn:hover{ background:var(--btn-bg-hover); }
+  .file-name{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    flex:1;
+    min-width:0;
+  }
+  .file-status{
+    margin-top:9px;
+    font-size:12px;
+    font-family:var(--mono);
+  }
+  .file-status.ok{ color:#3d7a3d; }
+  :root[data-theme="dark"] .file-status.ok{ color:#7fd07f; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .file-status.ok{ color:#7fd07f; } }
+  .file-status.err{ color:var(--mismatch-text); }
+  .file-status.warn{ color:#946200; }
+  input[type="file"]{ display:none; }
+
+  .reconcile-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:8px;
+  }
+  #reconcileBtn{
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    border:none;
+    padding:13px 22px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  #reconcileBtn:disabled{
+    background:var(--panel-2);
+    color:var(--text-muted);
+    cursor:not-allowed;
+  }
+  #reconcileBtn:not(:disabled):hover{ background:var(--btn-bg-hover); }
+  .msg-line{ font-size:12.5px; color:var(--text-muted); }
+  .msg-line.err{ color:var(--mismatch-text); font-weight:600; }
+
+  .results{ margin-top:30px; display:none; }
+  .results.show{ display:block; }
+
+  .summary-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:20px;
+  }
+  @media (max-width:820px){ .summary-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat{
+    border:1px solid var(--border);
+    border-left:3px solid var(--border-strong);
+    background:var(--panel);
+    padding:12px 14px;
+    border-radius:2px;
+  }
+  .stat.bad{ border-left-color:var(--mismatch-border); background:var(--mismatch-bg); }
+  .stat .k{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .stat.bad .k{ color:var(--mismatch-text); }
+  .stat .v{
+    font-family:var(--mono);
+    font-size:20px;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .stat.bad .v{ color:var(--mismatch-text); }
+  .stat .v2{
+    font-size:11.5px;
+    color:var(--text-muted);
+    margin-top:3px;
+    font-family:var(--sans);
+  }
+
+  .toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .toolbar-left{ display:flex; gap:8px; flex-wrap:wrap; position:relative; }
+  .toolbar-right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .tbtn{
+    background:var(--panel);
+    border:1px solid var(--border-strong);
+    color:var(--text);
+    padding:7px 12px;
+    font-size:12.5px;
+    font-weight:600;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .tbtn:hover{ background:var(--panel-2); }
+  .searchbox{ width:200px; }
+  .check-label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    cursor:pointer;
+    user-select:none;
+  }
+  .colpanel{
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    background:var(--input-bg);
+    border:1px solid var(--border-strong);
+    border-radius:2px;
+    padding:10px 12px;
+    box-shadow:var(--shadow);
+    z-index:20;
+    display:none;
+    min-width:170px;
+  }
+  .colpanel.open{ display:block; }
+  .colpanel label{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:12.5px;
+    padding:4px 0;
+    cursor:pointer;
+  }
+
+  .table-wrap{
+    overflow-x:hidden;
+    border:1px solid var(--border-strong);
+    border-radius:2px;
+  }
+  table.table-bordered.dataTable{
+    width:100%;
+    table-layout:fixed;
+    border-collapse:collapse;
+    background:var(--bg);
+    font-size:clamp(8.5px, 1.35vw, 13px);
+  }
+  table.table-bordered.dataTable th,
+  table.table-bordered.dataTable td{
+    border:1px solid var(--border);
+    padding:clamp(3px,0.8vw,9px) clamp(4px,1vw,11px);
+    text-align:left;
+    vertical-align:middle;
+    word-break:break-word;
+    overflow-wrap:break-word;
+  }
+  table.table-bordered.dataTable thead th{
+    background:var(--header-bg);
+    color:var(--header-text);
+    font-size:clamp(7.5px, 1vw, 11px);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    font-weight:600;
+    position:sticky;
+    top:0;
+    cursor:pointer;
+    white-space:normal;
+    user-select:none;
+  }
+  table.table-bordered.dataTable thead th .arrow{ opacity:0.5; margin-left:4px; font-size:10px; }
+  table.table-bordered.dataTable thead th.sorted .arrow{ opacity:1; }
+  table.table-bordered.dataTable tbody tr:nth-child(4n+1),
+  table.table-bordered.dataTable tbody tr:nth-child(4n+2){ background:var(--stripe); }
+  table.table-bordered.dataTable tbody tr.data-row:hover{ background:var(--row-hover); cursor:pointer; }
+  table.table-bordered.dataTable tbody tr.mismatch td{ background:var(--mismatch-bg); color:var(--mismatch-text); }
+  table.table-bordered.dataTable tbody tr.mismatch:hover td{ filter:brightness(0.97); }
+  .num{ text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .badge{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    padding:2px 7px;
+    border-radius:2px;
+    border:1px solid currentColor;
+  }
+  .badge.match{ color:#3d7a3d; }
+  :root[data-theme="dark"] .badge.match{ color:#7fd07f; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .badge.match{ color:#7fd07f; } }
+  .badge.mismatch{ color:var(--mismatch-text); }
+  .tag-auto{
+    display:inline-block;
+    font-size:9.5px;
+    font-family:var(--mono);
+    background:var(--auto-bg);
+    color:var(--auto-text);
+    border:1px dashed var(--border-strong);
+    padding:1px 5px;
+    border-radius:2px;
+    margin-left:6px;
+  }
+  .expand-cell{ width:26px; text-align:center; color:var(--text-muted); font-family:var(--mono); }
+  tr.detail-row{ display:none; }
+
+  /* Off-screen container built specifically for Image export: a fixed, wide
+     (landscape-style) layout with compact font sizes and a totals summary
+     pinned at the top, so the downloaded PNG is a single, fully-legible
+     snapshot of every row with no cropping and no on-screen scrolling. */
+  .img-export-wrap{
+    position:fixed;
+    top:0;
+    left:-10000px;
+    width:max-content;
+    min-width:1500px;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    padding:26px 30px 28px;
+  }
+  .iw-header{ margin-bottom:16px; }
+  .iw-title-row{ display:flex; align-items:center; gap:12px; }
+  .iw-mark{
+    font-family:var(--mono);
+    font-size:20px;
+    font-weight:600;
+    border:1px solid var(--border-strong);
+    border-radius:3px;
+    padding:4px 9px;
+    flex-shrink:0;
+  }
+  .iw-title{ font-size:19px; font-weight:700; letter-spacing:0.01em; }
+  .iw-meta{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .iw-totals{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin:16px 0 18px;
+  }
+  .iw-stat{
+    border:1px solid var(--border);
+    border-left:3px solid var(--border-strong);
+    background:var(--panel);
+    padding:9px 12px;
+    border-radius:2px;
+  }
+  .iw-stat.bad{ border-left-color:var(--mismatch-border); background:var(--mismatch-bg); }
+  .iw-k{
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--text-muted);
+    margin-bottom:4px;
+  }
+  .iw-stat.bad .iw-k{ color:var(--mismatch-text); }
+  .iw-v{
+    font-family:var(--mono);
+    font-size:15px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .iw-stat.bad .iw-v{ color:var(--mismatch-text); }
+  .iw-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:11px;
+    background:var(--bg);
+  }
+  .iw-table th, .iw-table td{
+    border:1px solid var(--border);
+    padding:6px 8px;
+    text-align:left;
+    vertical-align:middle;
+  }
+  .iw-table thead th{
+    background:var(--header-bg);
+    color:var(--header-text);
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .iw-table tbody tr:nth-child(even){ background:var(--stripe); }
+  .iw-table tr.iw-mismatch td{ background:var(--mismatch-bg); color:var(--mismatch-text); }
+  .iw-idx{ width:24px; text-align:center; color:var(--text-muted); font-family:var(--mono); }
+  .iw-num, .iw-num-h{ text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .iw-badge{
+    display:inline-block;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    padding:2px 6px;
+    border-radius:2px;
+    border:1px solid currentColor;
+  }
+  .iw-badge.ok{ color:#3d7a3d; }
+  :root[data-theme="dark"] .iw-badge.ok{ color:#7fd07f; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .iw-badge.ok{ color:#7fd07f; } }
+  .iw-badge.bad{ color:var(--mismatch-text); }
+  .iw-tag{
+    display:inline-block;
+    font-size:9px;
+    font-family:var(--mono);
+    background:var(--auto-bg);
+    color:var(--auto-text);
+    border:1px dashed var(--border-strong);
+    padding:1px 5px;
+    border-radius:2px;
+  }
+  .iw-footer{
+    margin-top:14px;
+    font-size:9.5px;
+    color:var(--text-muted);
+    border-top:1px solid var(--border);
+    padding-top:8px;
+  }
+  .mini-toolbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:10px 0;
+  }
+  tr.detail-row.open{ display:table-row; }
+  tr.detail-row td{ background:var(--panel-2); padding:12px; }
+  .detail-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:700px){ .detail-grid{ grid-template-columns:1fr; } }
+  .detail-block h4{
+    margin:0 0 8px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--text-muted);
+  }
+  .mini-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .mini-table th, .mini-table td{ border:1px solid var(--border); padding:5px 7px; }
+  .mini-table th{ background:var(--panel); font-weight:600; text-align:left; }
+  .mini-table td.num{ text-align:right; }
+  .empty-note{ color:var(--text-muted); font-size:12px; font-style:italic; }
+
+  .section-title{
+    font-size:13px;
+    font-weight:700;
+    margin:26px 0 8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .section-title .count{
+    font-family:var(--mono);
+    font-weight:400;
+    color:var(--text-muted);
+    font-size:12px;
+  }
+  .helptext{ font-size:12px; color:var(--text-muted); margin:6px 0 14px; max-width:70ch; }
+
+  footer{
+    max-width:1180px;
+    margin:40px auto 20px;
+    padding:0 20px;
+    font-size:11.5px;
+    color:var(--text-muted);
+    border-top:1px solid var(--border);
+    padding-top:14px;
+  }
+  .toast{
+    position:fixed;
+    bottom:calc(20px + env(safe-area-inset-bottom,0px));
+    left:50%;
+    transform:translateX(-50%) translateY(8px);
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    padding:9px 16px;
+    border-radius:3px;
+    font-size:12.5px;
+    font-weight:600;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="topbar-mark">MM</span>
+    <div>
+      <h1>MM Roadways — Vehicle Advance Tally</h1>
+      <div class="sub">Asset report ⇄ OmniCard / account statement reconciliation — vehicle-wise</div>
+    </div>
+    <div class="topbar-credit">Developed by Vicky</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="upload-grid">
+    <div class="upload-card">
+      <span class="upload-tab">FILE 1</span>
+      <div class="file-row">
+        <button type="button" class="file-btn" id="btn1">Choose file</button>
+        <span class="file-name" id="name1">No file chosen</span>
+      </div>
+      <input type="file" id="file1" accept=".xlsx,.xls,.csv">
+      <div class="file-status" id="status1"></div>
+    </div>
+
+    <div class="upload-card">
+      <span class="upload-tab">FILE 2</span>
+      <div class="file-row">
+        <button type="button" class="file-btn" id="btn2">Choose file</button>
+        <span class="file-name" id="name2">No file chosen</span>
+      </div>
+      <input type="file" id="file2" accept=".xlsx,.xls,.csv">
+      <div class="file-status" id="status2"></div>
+    </div>
+  </div>
+
+  <div class="reconcile-row">
+    <button id="reconcileBtn" disabled>Reconcile</button>
+    <span class="msg-line" id="reconcileMsg">Choose a file on both sides to continue — the report type is detected automatically.</span>
+  </div>
+
+  <div class="results" id="results">
+
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="tbtn" id="copyBtn">Copy</button>
+        <button class="tbtn" id="colBtn">Column visibility</button>
+        <div class="colpanel" id="colPanel"></div>
+        <button class="tbtn" id="excelBtn">Excel</button>
+        <button class="tbtn" id="pdfBtn">PDF</button>
+        <button class="tbtn" id="imgBtn">Image</button>
+      </div>
+      <div class="toolbar-right">
+        <label class="check-label"><input type="checkbox" id="mismatchOnly"> Mismatches only</label>
+        <input type="text" class="searchbox" id="searchBox" placeholder="Search vehicle no…">
+      </div>
+    </div>
+
+    <div id="mainCapture">
+      <div class="table-wrap">
+        <table class="table table-bordered dataTable" id="tallyTable">
+          <thead><tr id="theadRow"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="unassignedSection"></div>
+
+  </div>
+
+</div>
+
+<footer>
+  Matching runs entirely in this browser tab — files are not uploaded anywhere. Vehicles are matched between the two reports using the last 4 digits of the vehicle number found in the Remarks/Description text; entries with no vehicle reference are reconciled against any vehicle's leftover balance where the amounts line up exactly, and anything left over is listed under manual review.
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+
+/* ===== core.js ===== */
+/* ============================================================
+   CORE reconciliation logic — pure functions, no DOM/browser deps
+   so it can be unit-tested in Node before being embedded.
+   ============================================================ */
+
+function normKey(s){
+  return (s==null?'':String(s)).toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+function last4Of(s){
+  const n = normKey(s);
+  const m = n.match(/(\d{4})$/);
+  return m ? m[1] : null;
+}
+function cleanHeader(s){
+  return (s==null?'':String(s)).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+}
+function toNum(v){
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(/,/g,'').trim());
+  return isNaN(n) ? 0 : n;
+}
+
+/* ---------- Sheet -> header row + column-role detection ---------- */
+
+const ROLE_HINTS = {
+  vehicleNo: [/vehicle\s*no/i, /vehicle\s*number/i, /^vehicle$/i],
+  totalAmount: [/total\s*amount/i],
+  driverName: [/driver\s*name/i, /^driver$/i],
+  fuelAmount: [/fuel\s*amount/i],
+  tollAmount: [/toll\s*amount/i],
+  paymentSource: [/payment\s*source/i],
+  paymentDate: [/payment\s*date/i],
+  route: [/^route$/i],
+  note: [/^note$/i, /^notes$/i],
+  voucherNo: [/voucher/i],
+  debit: [/^debit$/i, /debit/i],
+  remarks: [/remark/i],
+  description: [/description/i],
+  transactionDate: [/transaction\s*date/i, /^date$/i]
+};
+
+function findCol(headerRow, hintsKey){
+  const hints = ROLE_HINTS[hintsKey];
+  for (let i=0;i<headerRow.length;i++){
+    const h = cleanHeader(headerRow[i]);
+    if (!h) continue;
+    for (const re of hints){ if (re.test(h)) return i; }
+  }
+  return -1;
+}
+
+function looksLikeHeaderRow(row){
+  if (!row) return false;
+  const nonEmpty = row.filter(c=>c!=null && String(c).trim()!=='').length;
+  if (nonEmpty < 3) return false;
+  const joined = row.map(cleanHeader).join(' | ').toLowerCase();
+  return /vehicle/.test(joined) || /debit/.test(joined) || /transaction\s*date/.test(joined) ||
+         /description/.test(joined) || /remark/.test(joined) || /total\s*amount/.test(joined);
+}
+
+function findHeaderRowIndex(rows2d){
+  const scanLimit = Math.min(6, rows2d.length);
+  for (let i=0;i<scanLimit;i++){
+    if (looksLikeHeaderRow(rows2d[i])) return i;
+  }
+  return -1;
+}
+
+/* rows2d: array of arrays (raw sheet). Returns {role, rows, warnings} */
+function parseSheet(rows2d){
+  const headerIdx = findHeaderRowIndex(rows2d);
+  if (headerIdx === -1){
+    return { role:'unknown', rows:[], warnings:['Could not find a header row in this sheet.'] };
+  }
+  const header = rows2d[headerIdx];
+  const cols = {};
+  Object.keys(ROLE_HINTS).forEach(k => cols[k] = findCol(header, k));
+
+  const hasAsset = cols.vehicleNo !== -1 && cols.totalAmount !== -1;
+  const hasAccount = cols.debit !== -1 && (cols.remarks !== -1 || cols.description !== -1);
+
+  let role = 'unknown';
+  if (hasAsset) role = 'fuel';
+  else if (hasAccount) role = 'account';
+
+  const dataRows = rows2d.slice(headerIdx+1).filter(r => r && r.some(c=>c!=null && String(c).trim()!==''));
+
+  const rows = [];
+  if (role === 'fuel'){
+    for (const r of dataRows){
+      const vehicleNoRaw = r[cols.vehicleNo];
+      if (vehicleNoRaw == null || String(vehicleNoRaw).trim()==='') continue;
+      const vehicleKey = normKey(vehicleNoRaw);
+      rows.push({
+        vehicleNoRaw: String(vehicleNoRaw).trim(),
+        vehicleKey,
+        last4: last4Of(vehicleNoRaw),
+        totalAmount: toNum(r[cols.totalAmount]),
+        driverName: cols.driverName!==-1 ? cleanHeader(r[cols.driverName]) : '',
+        fuelAmount: cols.fuelAmount!==-1 ? toNum(r[cols.fuelAmount]) : null,
+        tollAmount: cols.tollAmount!==-1 ? toNum(r[cols.tollAmount]) : null,
+        paymentSource: cols.paymentSource!==-1 ? cleanHeader(r[cols.paymentSource]) : '',
+        paymentDate: cols.paymentDate!==-1 ? cleanHeader(r[cols.paymentDate]) : '',
+        route: cols.route!==-1 ? cleanHeader(r[cols.route]) : '',
+        note: cols.note!==-1 ? cleanHeader(r[cols.note]) : '',
+        voucherNo: cols.voucherNo!==-1 ? cleanHeader(r[cols.voucherNo]) : ''
+      });
+    }
+  } else if (role === 'account'){
+    for (const r of dataRows){
+      const debit = toNum(r[cols.debit]);
+      if (debit === 0) continue;
+      rows.push({
+        transactionDate: cols.transactionDate!==-1 ? cleanHeader(r[cols.transactionDate]) : '',
+        description: cols.description!==-1 ? cleanHeader(r[cols.description]) : '',
+        remarks: cols.remarks!==-1 ? cleanHeader(r[cols.remarks]) : '',
+        debit
+      });
+    }
+  }
+  return { role, rows, warnings: [] };
+}
+
+/* Try all sheets in a workbook (array of {name, rows2d}), return the best matching one for expected role */
+function parseWorkbookSheets(sheets, expectedRole){
+  let best = null;
+  for (const sheet of sheets){
+    const parsed = parseSheet(sheet.rows2d);
+    if (parsed.role === 'unknown') continue;
+    if (parsed.role === expectedRole){ return parsed; }
+    if (!best) best = parsed;
+  }
+  return best || { role:'unknown', rows:[], warnings:['No recognisable columns found in any sheet.'] };
+}
+
+/* ---------- Vehicle plate / last-4 extraction from free text ---------- */
+
+const PLATE_RE = /\b[A-Z]{2}\s?-?\s?\d{1,2}\s?[A-Z]{0,3}\s?\d{3,4}\b/i;
+const FOUR_DIGIT_RE = /\b(\d{4})\b/;
+
+function extractLast4FromText(text){
+  if (!text) return { last4:null, matchType:null };
+  const plate = text.match(PLATE_RE);
+  if (plate){
+    const l4 = last4Of(plate[0]);
+    if (l4) return { last4:l4, matchType:'plate' };
+  }
+  const four = text.match(FOUR_DIGIT_RE);
+  if (four) return { last4:four[1], matchType:'digits' };
+  return { last4:null, matchType:null };
+}
+
+/* ---------- Combination helper for auto-reconcile ---------- */
+
+function combosOfIndices(n, k){
+  const result = [];
+  const combo = [];
+  function rec(start){
+    if (combo.length === k){ result.push(combo.slice()); return; }
+    for (let i=start;i<n;i++){
+      combo.push(i);
+      rec(i+1);
+      combo.pop();
+    }
+  }
+  rec(0);
+  return result;
+}
+
+/* ============================================================
+   MAIN reconciliation pipeline
+   assetRows: from parseSheet role 'fuel'
+   accountRows: from parseSheet role 'account'
+   ============================================================ */
+function reconcile(assetRows, accountRows){
+  // 1. Build vehicle master from asset rows
+  const master = {}; // key -> {vehicleNo, last4, assetTotal, entries:[]}
+  for (const row of assetRows){
+    const key = row.vehicleKey;
+    if (!master[key]){
+      master[key] = { vehicleKey:key, vehicleNo: row.vehicleNoRaw, last4: row.last4, assetTotal:0, entries:[] };
+    }
+    master[key].assetTotal += row.totalAmount;
+    master[key].entries.push(row);
+  }
+
+  // last4 index (may collide)
+  const last4Index = {};
+  Object.values(master).forEach(v=>{
+    if (!v.last4) return;
+    (last4Index[v.last4] = last4Index[v.last4] || []).push(v.vehicleKey);
+  });
+
+  // 2. Match account rows against master via remarks (primary) then description (fallback)
+  const omniEntries = {}; // vehicleKey -> [rows]
+  const unknownVehicleEntries = {}; // last4 (not in master) -> [rows]
+  const noRefPool = []; // rows with no vehicle reference at all
+
+  for (const row of accountRows){
+    // Only the Remarks field is trusted for vehicle identification. The Description field
+    // in bank/OmniCard exports often carries the *sender's own* linked vehicle tag (e.g.
+    // "Add Money | Name | phone | TN52AD4355"), which is not necessarily the vehicle the
+    // expense is actually for — using it as a fallback causes false cross-vehicle matches.
+    const ext = extractLast4FromText(row.remarks);
+
+    if (ext.last4 && last4Index[ext.last4] && last4Index[ext.last4].length){
+      // disambiguate collisions: prefer a vehicle whose full normalized plate appears in the remarks text
+      let vehicleKey = last4Index[ext.last4][0];
+      if (last4Index[ext.last4].length > 1){
+        const text = normKey(row.remarks||'');
+        const exact = last4Index[ext.last4].find(k => text.includes(k));
+        if (exact) vehicleKey = exact;
+      }
+      (omniEntries[vehicleKey] = omniEntries[vehicleKey] || []).push(Object.assign({}, row, { matchType: ext.matchType }));
+    } else if (ext.last4){
+      // has a vehicle-like reference but no such vehicle in the asset file
+      (unknownVehicleEntries[ext.last4] = unknownVehicleEntries[ext.last4] || []).push(Object.assign({}, row, { matchType: ext.matchType }));
+    } else {
+      noRefPool.push(row);
+    }
+  }
+
+  // 3. Compute running diff per vehicle (asset - matched omni so far)
+  function currentOmniTotal(key){
+    return (omniEntries[key]||[]).reduce((s,r)=>s+r.debit,0);
+  }
+  function diffFor(key){
+    const a = master[key] ? master[key].assetTotal : 0;
+    return Math.round((a - currentOmniTotal(key)) * 100) / 100;
+  }
+
+  // 4a. Auto-reconcile pass A: exact same-value 1-1 pairing between pool items and vehicle diffs
+  let poolIdx = noRefPool.map((r,i)=>i);
+  const usedPool = new Set();
+  const autoAssignments = []; // {vehicleKey, rowIndex(in noRefPool), method}
+
+  function activeVehicleKeys(){
+    return Object.keys(master).filter(k => Math.abs(diffFor(k)) > 0.01);
+  }
+
+  // group remaining pool by rounded value
+  function poolGroupsByValue(){
+    const g = {};
+    poolIdx.filter(i=>!usedPool.has(i)).forEach(i=>{
+      const v = Math.round(noRefPool[i].debit*100)/100;
+      (g[v] = g[v] || []).push(i);
+    });
+    return g;
+  }
+
+  {
+    const targetGroups = {};
+    activeVehicleKeys().forEach(k=>{
+      const d = diffFor(k);
+      if (d > 0.01){ (targetGroups[d] = targetGroups[d] || []).push(k); }
+    });
+    const pg = poolGroupsByValue();
+    Object.keys(targetGroups).forEach(valStr=>{
+      const val = parseFloat(valStr);
+      const items = pg[val] || [];
+      const vehicles = targetGroups[valStr];
+      const m = Math.min(items.length, vehicles.length);
+      for (let i=0;i<m;i++){
+        const rowIdx = items[i];
+        const vehicleKey = vehicles[i];
+        usedPool.add(rowIdx);
+        (omniEntries[vehicleKey] = omniEntries[vehicleKey] || []).push(
+          Object.assign({}, noRefPool[rowIdx], { matchType:'auto-same' })
+        );
+        autoAssignments.push({ vehicleKey, method:'auto-same' });
+      }
+    });
+  }
+
+  // 4b. Auto-reconcile pass B: subset-sum (size 2..3) of remaining pool matching a remaining target diff,
+  // only committed when the match is unambiguous (single candidate combo) and doesn't reuse items.
+  {
+    const MAX_COMBO = 3;
+    let changed = true;
+    let iterations = 0;
+    while (changed && iterations < 3){
+      changed = false;
+      iterations++;
+      const remainingIdx = poolIdx.filter(i=>!usedPool.has(i));
+      if (remainingIdx.length < 2) break;
+      const targets = activeVehicleKeys().filter(k => diffFor(k) > 0.01);
+      if (!targets.length) break;
+
+      // candidate combos: value(rounded) -> [{comboAbsIndices}]
+      const comboCandidatesByTarget = {}; // vehicleKey -> [ [absIdx,...], ... ]
+      const n = remainingIdx.length;
+      if (n <= 14){ // cap for performance/sanity
+        for (let k=2;k<=Math.min(MAX_COMBO, n);k++){
+          const combos = combosOfIndices(n, k);
+          for (const combo of combos){
+            const absIdx = combo.map(ci=>remainingIdx[ci]);
+            const sum = Math.round(absIdx.reduce((s,ai)=>s+noRefPool[ai].debit,0)*100)/100;
+            for (const vk of targets){
+              if (Math.abs(diffFor(vk) - sum) < 0.01){
+                (comboCandidatesByTarget[vk] = comboCandidatesByTarget[vk] || []).push(absIdx);
+              }
+            }
+          }
+        }
+      }
+
+      // commit only vehicles with exactly one candidate combo, and combo items not used by other committed combos this round
+      const claimed = new Set();
+      const toCommit = [];
+      Object.keys(comboCandidatesByTarget).forEach(vk=>{
+        const combos = comboCandidatesByTarget[vk];
+        if (combos.length === 1){
+          toCommit.push({ vehicleKey: vk, combo: combos[0] });
+        }
+      });
+      for (const c of toCommit){
+        if (c.combo.some(ai => claimed.has(ai) || usedPool.has(ai))) continue;
+        c.combo.forEach(ai=>claimed.add(ai));
+        c.combo.forEach(ai=>{
+          usedPool.add(ai);
+          (omniEntries[c.vehicleKey] = omniEntries[c.vehicleKey] || []).push(
+            Object.assign({}, noRefPool[ai], { matchType:'auto-sum' })
+          );
+          autoAssignments.push({ vehicleKey:c.vehicleKey, method:'auto-sum' });
+        });
+        changed = true;
+      }
+    }
+  }
+
+  // 5. Build final vehicle-wise result list
+  const allKeys = new Set([...Object.keys(master), ...Object.keys(omniEntries)]);
+  const vehicles = [];
+  allKeys.forEach(key=>{
+    const assetTotal = master[key] ? Math.round(master[key].assetTotal*100)/100 : 0;
+    const entries = omniEntries[key] || [];
+    const omniTotal = Math.round(entries.reduce((s,r)=>s+r.debit,0)*100)/100;
+    const diff = Math.round((assetTotal - omniTotal)*100)/100;
+    vehicles.push({
+      vehicleKey: key,
+      vehicleNo: master[key] ? master[key].vehicleNo : key,
+      assetTotal,
+      omniTotal,
+      diff,
+      status: Math.abs(diff) < 0.01 ? 'Match' : 'Mismatch',
+      assetEntries: master[key] ? master[key].entries : [],
+      omniEntries: entries,
+      knownVehicle: !!master[key]
+    });
+  });
+
+  // vehicles referenced only in omni file with an actual (but unknown) plate — surface separately too
+  Object.keys(unknownVehicleEntries).forEach(l4=>{
+    const entries = unknownVehicleEntries[l4];
+    const omniTotal = Math.round(entries.reduce((s,r)=>s+r.debit,0)*100)/100;
+    vehicles.push({
+      vehicleKey: 'UNKNOWN-' + l4,
+      vehicleNo: '•••• ' + l4 + ' (not in asset file)',
+      assetTotal: 0,
+      omniTotal,
+      diff: Math.round((0-omniTotal)*100)/100,
+      status: 'Mismatch',
+      assetEntries: [],
+      omniEntries: entries,
+      knownVehicle: false
+    });
+  });
+
+  const stillUnassigned = poolIdx.filter(i=>!usedPool.has(i)).map(i=>noRefPool[i]);
+
+  const totals = {
+    totalAsset: Math.round(assetRows.reduce((s,r)=>s+r.totalAmount,0)*100)/100,
+    totalOmni: Math.round(accountRows.reduce((s,r)=>s+r.debit,0)*100)/100,
+    unassignedAmount: Math.round(stillUnassigned.reduce((s,r)=>s+r.debit,0)*100)/100,
+    unassignedCount: stillUnassigned.length,
+    mismatchCount: vehicles.filter(v=>v.status==='Mismatch').length,
+    vehicleCount: vehicles.length
+  };
+  totals.overallDiff = Math.round((totals.totalAsset - totals.totalOmni)*100)/100;
+
+  return { vehicles, unassigned: stillUnassigned, totals };
+}
+
+/* Namespace export — used as `CORE` by the browser app layer, and via
+   module.exports when running under Node for testing. */
+var CORE = { normKey, last4Of, toNum, cleanHeader, parseSheet, parseWorkbookSheets, extractLast4FromText, reconcile };
+if (typeof module !== 'undefined'){
+  module.exports = CORE;
+}
+
+
+/* ===== app.js ===== */
+/* ============================================================
+   Browser app layer — file I/O, rendering, exports, event wiring.
+   Depends on: CORE (core.js, inlined above this script), XLSX,
+   html2canvas, jsPDF + autoTable, and the DOM structure in index.html
+   ============================================================ */
+(function(){
+  'use strict';
+
+  const state = {
+    files: { 1:null, 2:null },      // { workbook, filename, parsed:{role,rows} } — role is auto-detected
+    result: null,                    // output of CORE.reconcile
+    columns: [
+      { key:'assetVehicleNo', label:'Asset Vehicle', visible:true, sortable:true },
+      { key:'omniVehicleNo', label:'Omni Vehicle', visible:true, sortable:true },
+      { key:'assetTotal', label:'Total Asset Amount', visible:true, sortable:true },
+      { key:'omniTotal', label:'Total Omni Amount', visible:true, sortable:true },
+      { key:'diff', label:'Difference', visible:true, sortable:true },
+      { key:'status', label:'Status', visible:true, sortable:true }
+    ],
+    sortKey:'assetTotal',
+    sortDir:1,
+    searchQuery:'',
+    mismatchOnly:false,
+    openDetailKeys: new Set()
+  };
+
+  const collator = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' });
+
+  function fmtMoney(n){
+    const v = Math.round((n||0)*100)/100;
+    const sign = v < 0 ? '-' : '';
+    return sign + '₹' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+  function fmtNum(n){
+    return (n||0).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._h);
+    toast._h = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  /* ---------------- Excel styling helpers (bordered table, matches on-screen look) ---------------- */
+
+  const XL_THIN = { style:'thin', color:{ rgb:'B0AFA8' } };
+  const XL_BOX = { top:XL_THIN, bottom:XL_THIN, left:XL_THIN, right:XL_THIN };
+
+  function xlCell(value, style){
+    const v = (value===null || value===undefined) ? '' : value;
+    return { v: v, t: typeof v === 'number' ? 'n' : 's', s: style || {} };
+  }
+  function xlTitleStyle(){
+    return { font:{ bold:true, sz:14, color:{ rgb:'161615' } } };
+  }
+  function xlSubtitleStyle(){
+    return { font:{ bold:true, sz:11, color:{ rgb:'54534D' } } };
+  }
+  function xlKvLabelStyle(){
+    return { font:{ bold:true }, border: XL_BOX };
+  }
+  function xlKvValueStyle(){
+    return { border: XL_BOX, numFmt:'#,##0.00' };
+  }
+  function xlHeadStyle(){
+    return {
+      font:{ bold:true, color:{ rgb:'F7F7F5' } },
+      fill:{ patternType:'solid', fgColor:{ rgb:'0E0E0D' } },
+      border: XL_BOX,
+      alignment:{ horizontal:'center', vertical:'center', wrapText:true }
+    };
+  }
+  function xlBodyStyle(mismatch, stripe){
+    const s = { border: XL_BOX };
+    if (mismatch){
+      s.fill = { patternType:'solid', fgColor:{ rgb:'FDECEB' } };
+      s.font = { color:{ rgb:'A3241A' } };
+    } else if (stripe){
+      s.fill = { patternType:'solid', fgColor:{ rgb:'FAFAF8' } };
+    }
+    return s;
+  }
+  function xlNumStyle(mismatch, stripe){
+    const s = xlBodyStyle(mismatch, stripe);
+    s.numFmt = '#,##0.00';
+    s.alignment = { horizontal:'right' };
+    return s;
+  }
+
+  /* ---------------- File handling ---------------- */
+
+  function wireFileSlot(n){
+    const btn = document.getElementById('btn'+n);
+    const input = document.getElementById('file'+n);
+    const nameEl = document.getElementById('name'+n);
+    const statusEl = document.getElementById('status'+n);
+
+    btn.addEventListener('click', ()=> input.click());
+
+    input.addEventListener('change', function(){
+      const f = input.files && input.files[0];
+      if (!f) return;
+      nameEl.textContent = f.name;
+      statusEl.textContent = 'Reading…';
+      statusEl.className = 'file-status';
+
+      const reader = new FileReader();
+      reader.onload = function(e){
+        try{
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type:'array', cellDates:false });
+          const sheets = wb.SheetNames.map(name=>{
+            const ws = wb.Sheets[name];
+            const rows2d = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+            return { name, rows2d };
+          });
+          // No manual report-type selector any more — the report type
+          // (Fuel Check / Asset vs. Accounts) is detected purely from
+          // the file's own columns.
+          const parsed = CORE.parseWorkbookSheets(sheets, null);
+
+          if (parsed.role === 'unknown' || !parsed.rows.length){
+            statusEl.textContent = 'Could not find recognisable columns (Vehicle No / Total Amount, or Debit / Remarks) in this file.';
+            statusEl.className = 'file-status err';
+            state.files[n] = null;
+            updateReconcileState();
+            return;
+          }
+
+          state.files[n] = { workbook:wb, filename:f.name, parsed };
+
+          const roleLabel = parsed.role === 'fuel' ? 'Fuel Check / Asset report' : 'Accounts report';
+          statusEl.textContent = 'Loaded ' + parsed.rows.length + ' row' + (parsed.rows.length===1?'':'s') + ' — detected as ' + roleLabel + '.';
+          statusEl.className = 'file-status ok';
+
+          updateReconcileState();
+        } catch(err){
+          console.error(err);
+          statusEl.textContent = 'Could not read this file. Please check it is a valid Excel/CSV export.';
+          statusEl.className = 'file-status err';
+          state.files[n] = null;
+          updateReconcileState();
+        }
+      };
+      reader.onerror = function(){
+        statusEl.textContent = 'Could not read this file.';
+        statusEl.className = 'file-status err';
+      };
+      reader.readAsArrayBuffer(f);
+    });
+  }
+
+  function updateReconcileState(){
+    const btn = document.getElementById('reconcileBtn');
+    const msg = document.getElementById('reconcileMsg');
+    const f1 = state.files[1], f2 = state.files[2];
+
+    if (!f1 || !f2){
+      btn.disabled = true;
+      msg.textContent = 'Choose a file on both sides to continue — the report type is detected automatically.';
+      msg.className = 'msg-line';
+      return;
+    }
+    if (f1.parsed.role === f2.parsed.role){
+      btn.disabled = true;
+      msg.textContent = 'Both files look like the same report type (' + (f1.parsed.role==='fuel'?'Fuel Check / Asset':'Accounts') + '). Please upload one Fuel Check / Asset report and one Accounts report.';
+      msg.className = 'msg-line err';
+      return;
+    }
+    btn.disabled = false;
+    msg.textContent = 'Ready to reconcile ' + f1.parsed.rows.length + ' + ' + f2.parsed.rows.length + ' rows.';
+    msg.className = 'msg-line';
+  }
+
+  /* ---------------- Reconcile ---------------- */
+
+  function runReconcile(){
+    const f1 = state.files[1], f2 = state.files[2];
+    if (!f1 || !f2) return;
+    const assetSide = f1.parsed.role === 'fuel' ? f1 : f2;
+    const accountSide = f1.parsed.role === 'account' ? f1 : f2;
+    if (assetSide.parsed.role !== 'fuel' || accountSide.parsed.role !== 'account'){
+      toast('Could not identify one Fuel Check / Asset file and one Accounts file.');
+      return;
+    }
+    state.result = CORE.reconcile(assetSide.parsed.rows, accountSide.parsed.rows);
+    state.openDetailKeys = new Set();
+    document.getElementById('results').classList.add('show');
+    renderAll();
+    document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  /* ---------------- Rendering ---------------- */
+
+  function renderAll(){
+    renderSummary();
+    renderColumnPanel();
+    renderTable();
+    renderUnassigned();
+  }
+
+  function renderSummary(){
+    const r = state.result;
+    const grid = document.getElementById('summaryGrid');
+    const overallBad = Math.abs(r.totals.overallDiff) > 0.01;
+    grid.innerHTML = `
+      <div class="stat">
+        <div class="k">Total Asset Amount</div>
+        <div class="v">${fmtMoney(r.totals.totalAsset)}</div>
+      </div>
+      <div class="stat">
+        <div class="k">Total Omni Amount</div>
+        <div class="v">${fmtMoney(r.totals.totalOmni)}</div>
+      </div>
+      <div class="stat ${overallBad ? 'bad' : ''}">
+        <div class="k">Difference</div>
+        <div class="v">${fmtMoney(r.totals.overallDiff)}</div>
+        <div class="v2">${r.totals.mismatchCount} of ${r.totals.vehicleCount} vehicles mismatched</div>
+      </div>
+      <div class="stat ${r.totals.unassignedCount ? 'bad' : ''}">
+        <div class="k">Unmatched (manual review)</div>
+        <div class="v">${fmtMoney(r.totals.unassignedAmount)}</div>
+        <div class="v2">${r.totals.unassignedCount} entr${r.totals.unassignedCount===1?'y':'ies'} with no vehicle match</div>
+      </div>`;
+  }
+
+  function renderColumnPanel(){
+    const panel = document.getElementById('colPanel');
+    panel.innerHTML = state.columns.map(c=>`
+      <label><input type="checkbox" data-col="${c.key}" ${c.visible?'checked':''}> ${c.label}</label>
+    `).join('');
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const col = state.columns.find(c=>c.key===cb.dataset.col);
+        col.visible = cb.checked;
+        renderTable();
+      });
+    });
+  }
+
+  function getFilteredSortedVehicles(){
+    let list = state.result.vehicles.slice();
+    if (state.mismatchOnly) list = list.filter(v=>v.status==='Mismatch');
+    if (state.searchQuery){
+      const q = state.searchQuery.toLowerCase();
+      list = list.filter(v=> v.vehicleNo.toLowerCase().includes(q) || v.status.toLowerCase().includes(q));
+    }
+    const key = state.sortKey, dir = state.sortDir;
+    list.sort((a,b)=>{
+      let r;
+      if (key === 'assetVehicleNo' || key === 'omniVehicleNo') r = collator.compare(a.vehicleNo, b.vehicleNo);
+      else if (key === 'status') r = a.status.localeCompare(b.status);
+      else r = (a[key]||0) - (b[key]||0);
+      return r * dir;
+    });
+    return list;
+  }
+
+  function renderTable(){
+    const theadRow = document.getElementById('theadRow');
+    const tbody = document.getElementById('tbody');
+    const visibleCols = state.columns.filter(c=>c.visible);
+
+    theadRow.innerHTML = '<th class="expand-cell">#</th>' + visibleCols.map(c=>{
+      const sorted = state.sortKey === c.key;
+      const arrow = sorted ? (state.sortDir===1?'▲':'▼') : '↕';
+      return `<th data-key="${c.key}" class="${sorted?'sorted':''}">${c.label}<span class="arrow">${arrow}</span></th>`;
+    }).join('');
+
+    theadRow.querySelectorAll('th[data-key]').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const k = th.dataset.key;
+        if (state.sortKey === k) state.sortDir *= -1;
+        else { state.sortKey = k; state.sortDir = 1; }
+        renderTable();
+      });
+    });
+
+    const list = getFilteredSortedVehicles();
+    if (!list.length){
+      tbody.innerHTML = `<tr><td colspan="${visibleCols.length+1}" class="empty-note" style="padding:20px;">No vehicles match the current filter.</td></tr>`;
+      return;
+    }
+
+    let html = '';
+    list.forEach((v,i)=>{
+      const mismatchClass = v.status==='Mismatch' ? 'mismatch' : '';
+      html += `<tr class="data-row ${mismatchClass}" data-key="${escAttr(v.vehicleKey)}"><td class="expand-cell">${i+1}</td>`;
+      visibleCols.forEach(c=>{
+        if (c.key === 'assetVehicleNo'){
+          html += `<td>${esc(v.vehicleNo)}</td>`;
+        } else if (c.key === 'omniVehicleNo'){
+          html += v.knownVehicle
+            ? `<td>${esc(v.vehicleNo)}</td>`
+            : `<td><span class="tag-auto">unknown plate</span></td>`;
+        } else if (c.key === 'assetTotal'){
+          html += `<td class="num">${fmtNum(v.assetTotal)}</td>`;
+        } else if (c.key === 'omniTotal'){
+          html += `<td class="num">${fmtNum(v.omniTotal)}</td>`;
+        } else if (c.key === 'diff'){
+          html += `<td class="num">${fmtNum(v.diff)}</td>`;
+        } else if (c.key === 'status'){
+          html += `<td><span class="badge ${v.status==='Match'?'match':'mismatch'}">${v.status}</span></td>`;
+        }
+      });
+      html += '</tr>';
+      html += `<tr class="detail-row ${state.openDetailKeys.has(v.vehicleKey)?'open':''}" data-detail-for="${escAttr(v.vehicleKey)}"><td colspan="${visibleCols.length+1}">${renderDetail(v)}</td></tr>`;
+    });
+    tbody.innerHTML = html;
+
+    tbody.querySelectorAll('tr.data-row').forEach(tr=>{
+      tr.addEventListener('click', ()=>{
+        const key = tr.dataset.key;
+        if (state.openDetailKeys.has(key)) state.openDetailKeys.delete(key);
+        else state.openDetailKeys.add(key);
+        const dr = tbody.querySelector(`tr.detail-row[data-detail-for="${cssEsc(key)}"]`);
+        if (dr) dr.classList.toggle('open');
+      });
+    });
+  }
+
+  function matchTag(mt){
+    if (!mt) return '';
+    if (mt==='plate') return '';
+    if (mt==='digits') return '<span class="tag-auto">last-4 match</span>';
+    if (mt==='auto-same') return '<span class="tag-auto">auto — no ref in remarks</span>';
+    if (mt==='auto-sum') return '<span class="tag-auto">auto — combined, no ref in remarks</span>';
+    return '';
+  }
+
+  function renderDetail(v){
+    const assetRows = v.assetEntries.map(e=>`
+      <tr><td>${esc(e.driverName||'')}</td><td>${esc(e.route||e.note||'')}</td><td class="num">${fmtNum(e.totalAmount)}</td></tr>
+    `).join('') || `<tr><td colspan="3" class="empty-note">No entries in the Asset report.</td></tr>`;
+
+    const omniRows = v.omniEntries.map(e=>`
+      <tr><td>${esc(e.transactionDate||'')}</td><td>${esc(e.remarks||e.description||'')} ${matchTag(e.matchType)}</td><td class="num">${fmtNum(e.debit)}</td></tr>
+    `).join('') || `<tr><td colspan="3" class="empty-note">No entries in the Omni / Accounts report.</td></tr>`;
+
+    return `<div class="detail-grid">
+      <div class="detail-block">
+        <h4>Asset report entries</h4>
+        <table class="mini-table"><thead><tr><th>Driver</th><th>Route / Note</th><th>Amount</th></tr></thead><tbody>${assetRows}</tbody></table>
+      </div>
+      <div class="detail-block">
+        <h4>Omni / Accounts entries</h4>
+        <table class="mini-table"><thead><tr><th>Date</th><th>Remarks</th><th>Amount</th></tr></thead><tbody>${omniRows}</tbody></table>
+      </div>
+    </div>`;
+  }
+
+  function renderUnassigned(){
+    const sec = document.getElementById('unassignedSection');
+    const list = state.result.unassigned;
+    if (!list.length){ sec.innerHTML = ''; return; }
+    sec.innerHTML = `
+      <div class="section-title">Unmatched Omni entries — needs manual review <span class="count">(${list.length})</span></div>
+      <div class="helptext">These entries have no vehicle reference in Remarks, and no combination of them lined up exactly with a leftover balance on any vehicle. Check them manually.</div>
+      <div class="mini-toolbar">
+        <button class="tbtn" id="uCopyBtn">Copy</button>
+        <button class="tbtn" id="uExcelBtn">Excel</button>
+        <button class="tbtn" id="uPdfBtn">PDF</button>
+        <button class="tbtn" id="uImgBtn">Image</button>
+      </div>
+      <div id="unassignedCapture">
+        <div class="table-wrap">
+          <table class="table table-bordered dataTable">
+            <thead><tr><th>Date</th><th>Description</th><th>Remarks</th><th>Amount</th></tr></thead>
+            <tbody>
+              ${list.map(r=>`<tr><td>${esc(r.transactionDate||'')}</td><td>${esc(r.description||'')}</td><td>${esc(r.remarks||'')}</td><td class="num">${fmtNum(r.debit)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+
+    document.getElementById('uCopyBtn').addEventListener('click', function(){
+      const header = ['Date','Description','Remarks','Amount'].join('\t');
+      const lines = list.map(r=>[r.transactionDate||'', r.description||'', r.remarks||'', fmtNum(r.debit)].join('\t'));
+      const text = [header].concat(lines).join('\n');
+      const done = ()=>toast('Table copied to clipboard');
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text, done));
+      } else {
+        fallbackCopy(text, done);
+      }
+    });
+
+    document.getElementById('uExcelBtn').addEventListener('click', function(){
+      const rows = [];
+      rows.push([ xlCell('MM Roadways', xlTitleStyle()) ]);
+      rows.push([ xlCell('Unmatched Omni entries — manual review', xlSubtitleStyle()) ]);
+      rows.push([]);
+      rows.push(['Date','Description','Remarks','Amount'].map(h=>xlCell(h, xlHeadStyle())));
+      list.forEach((r,i)=>{
+        const stripe = i % 2 === 1;
+        rows.push([
+          xlCell(r.transactionDate, xlBodyStyle(false, stripe)),
+          xlCell(r.description, xlBodyStyle(false, stripe)),
+          xlCell(r.remarks, xlBodyStyle(false, stripe)),
+          xlCell(r.debit, xlNumStyle(false, stripe))
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:22},{wch:34},{wch:22},{wch:12}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Manual review');
+      XLSX.writeFile(wb, 'Vehicle_Advance_Tally_Manual_Review.xlsx');
+      toast('Excel file downloaded');
+    });
+
+    document.getElementById('uPdfBtn').addEventListener('click', function(){
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation:'landscape', unit:'pt' });
+      doc.setFontSize(14);
+      doc.text('Unmatched Omni entries — manual review', 40, 36);
+      doc.autoTable({
+        head: [['Date','Description','Remarks','Amount']],
+        body: list.map(r=>[r.transactionDate, r.description, r.remarks, fmtNum(r.debit)]),
+        startY: 56,
+        styles:{ fontSize:9, cellPadding:5 },
+        headStyles:{ fillColor:[14,14,13], textColor:[247,247,245] }
+      });
+      doc.save('Vehicle_Advance_Tally_Manual_Review.pdf');
+      toast('PDF downloaded');
+    });
+
+    document.getElementById('uImgBtn').addEventListener('click', function(){
+      exportMarkupAsImage(buildUnassignedExportMarkup(), 'Vehicle_Advance_Tally_Manual_Review.png');
+    });
+  }
+
+  function fmtDateTime(){
+    return new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function iwStat(label, value, bad){
+    return `<div class="iw-stat${bad?' bad':''}"><div class="iw-k">${esc(label)}</div><div class="iw-v">${esc(value)}</div></div>`;
+  }
+
+  /* Builds the markup for the main tally image export: title + a totals bar
+     (Total Asset / Total Omni / Difference / Unmatched) pinned at the top,
+     followed by the full currently-filtered table — every visible column,
+     every row, no horizontal scrolling. */
+  function buildMainExportMarkup(){
+    const r = state.result;
+    const visibleCols = state.columns.filter(c=>c.visible);
+    const list = getFilteredSortedVehicles();
+    const overallBad = Math.abs(r.totals.overallDiff) > 0.01;
+
+    const theadHtml = '<th class="iw-idx">#</th>' + visibleCols.map(c=>`<th>${esc(c.label)}</th>`).join('');
+    const rowsHtml = list.map((v,i)=>{
+      const rowClass = v.status==='Mismatch' ? ' class="iw-mismatch"' : '';
+      let cells = `<td class="iw-idx">${i+1}</td>`;
+      visibleCols.forEach(c=>{
+        if (c.key==='assetVehicleNo') cells += `<td>${esc(v.vehicleNo)}</td>`;
+        else if (c.key==='omniVehicleNo') cells += v.knownVehicle ? `<td>${esc(v.vehicleNo)}</td>` : `<td><span class="iw-tag">unknown plate</span></td>`;
+        else if (c.key==='assetTotal') cells += `<td class="iw-num">${fmtNum(v.assetTotal)}</td>`;
+        else if (c.key==='omniTotal') cells += `<td class="iw-num">${fmtNum(v.omniTotal)}</td>`;
+        else if (c.key==='diff') cells += `<td class="iw-num">${fmtNum(v.diff)}</td>`;
+        else if (c.key==='status') cells += `<td><span class="iw-badge ${v.status==='Match'?'ok':'bad'}">${esc(v.status)}</span></td>`;
+      });
+      return `<tr${rowClass}>${cells}</tr>`;
+    }).join('') || `<tr><td colspan="${visibleCols.length+1}" style="text-align:center;color:var(--text-muted);padding:16px;">No vehicles match the current filter.</td></tr>`;
+
+    return `
+      <div class="iw-header">
+        <div class="iw-title-row">
+          <span class="iw-mark">⚖</span>
+          <div>
+            <div class="iw-title">Vehicle Advance Tally Report</div>
+            <div class="iw-meta">Generated ${esc(fmtDateTime())} &middot; ${list.length} vehicle${list.length===1?'':'s'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="iw-totals">
+        ${iwStat('Total Asset Amount', fmtMoney(r.totals.totalAsset))}
+        ${iwStat('Total Omni Amount', fmtMoney(r.totals.totalOmni))}
+        ${iwStat('Difference', fmtMoney(r.totals.overallDiff), overallBad)}
+        ${iwStat('Unmatched (manual review)', fmtMoney(r.totals.unassignedAmount), !!r.totals.unassignedCount)}
+      </div>
+      <table class="iw-table">
+        <thead><tr>${theadHtml}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="iw-footer">Vehicle Advance Tally — generated in-browser, not uploaded anywhere.</div>
+    `;
+  }
+
+  /* Builds the markup for the unmatched/manual-review image export: title +
+     a totals bar (Total Unmatched Amount / Entries) at the top, then the
+     full list. */
+  function buildUnassignedExportMarkup(){
+    const list = state.result.unassigned;
+    const total = Math.round(list.reduce((s,r)=>s+r.debit,0)*100)/100;
+    const rowsHtml = list.map(r=>`<tr><td>${esc(r.transactionDate||'')}</td><td>${esc(r.description||'')}</td><td>${esc(r.remarks||'')}</td><td class="iw-num">${fmtNum(r.debit)}</td></tr>`).join('')
+      || `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">Nothing to review.</td></tr>`;
+
+    return `
+      <div class="iw-header">
+        <div class="iw-title-row">
+          <span class="iw-mark">⚖</span>
+          <div>
+            <div class="iw-title">Unmatched Omni Entries — Manual Review</div>
+            <div class="iw-meta">Generated ${esc(fmtDateTime())} &middot; ${list.length} entr${list.length===1?'y':'ies'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="iw-totals" style="grid-template-columns:repeat(2,1fr);max-width:520px;">
+        ${iwStat('Total Unmatched Amount', fmtMoney(total), list.length>0)}
+        ${iwStat('Entries', String(list.length))}
+      </div>
+      <table class="iw-table">
+        <thead><tr><th>Date</th><th>Description</th><th>Remarks</th><th class="iw-num-h">Amount</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="iw-footer">Vehicle Advance Tally — generated in-browser, not uploaded anywhere.</div>
+    `;
+  }
+
+  /* Renders the given markup into an off-screen, fixed-width (landscape-style)
+     wrapper so the whole report — totals bar plus every row, at a compact
+     font size — is captured into one single PNG with nothing cropped. */
+  function exportMarkupAsImage(markupHtml, filename){
+    toast('Rendering image…');
+    const wrap = document.createElement('div');
+    wrap.className = 'img-export-wrap';
+    wrap.innerHTML = markupHtml;
+    document.body.appendChild(wrap);
+
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        const bg = getComputedStyle(document.body).getPropertyValue('background-color') || '#ffffff';
+        html2canvas(wrap, {
+          scale:2,
+          backgroundColor: bg.trim() || '#ffffff',
+          useCORS:true,
+          width: wrap.scrollWidth,
+          height: wrap.scrollHeight,
+          windowWidth: wrap.scrollWidth,
+          windowHeight: wrap.scrollHeight
+        }).then(canvas=>{
+          document.body.removeChild(wrap);
+          canvas.toBlob(function(blob){
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            toast('Image downloaded');
+          });
+        }).catch(err=>{
+          document.body.removeChild(wrap);
+          console.error(err);
+          toast('Could not render image');
+        });
+      });
+    });
+  }
+
+
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escAttr(s){ return esc(s); }
+  function cssEsc(s){ return String(s).replace(/["\\]/g, '\\$&'); }
+
+  /* ---------------- Toolbar: search / filter ---------------- */
+
+  document.getElementById('searchBox').addEventListener('input', function(){
+    state.searchQuery = this.value.trim();
+    renderTable();
+  });
+  document.getElementById('mismatchOnly').addEventListener('change', function(){
+    state.mismatchOnly = this.checked;
+    renderTable();
+  });
+  document.getElementById('colBtn').addEventListener('click', function(e){
+    document.getElementById('colPanel').classList.toggle('open');
+    e.stopPropagation();
+  });
+  document.addEventListener('click', function(){
+    document.getElementById('colPanel').classList.remove('open');
+  });
+  document.getElementById('colPanel').addEventListener('click', e=>e.stopPropagation());
+
+  /* ---------------- Export: Copy ---------------- */
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    const visibleCols = state.columns.filter(c=>c.visible);
+    const list = getFilteredSortedVehicles();
+    const header = ['#'].concat(visibleCols.map(c=>c.label)).join('\t');
+    const lines = list.map((v,i)=>{
+      const cells = [i+1];
+      visibleCols.forEach(c=>{
+        if (c.key==='assetVehicleNo') cells.push(v.vehicleNo);
+        else if (c.key==='omniVehicleNo') cells.push(v.knownVehicle ? v.vehicleNo : 'Unknown plate');
+        else if (c.key==='assetTotal') cells.push(fmtNum(v.assetTotal));
+        else if (c.key==='omniTotal') cells.push(fmtNum(v.omniTotal));
+        else if (c.key==='diff') cells.push(fmtNum(v.diff));
+        else if (c.key==='status') cells.push(v.status);
+      });
+      return cells.join('\t');
+    });
+    const text = [header].concat(lines).join('\n');
+    const done = ()=>toast('Table copied to clipboard');
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+  function fallbackCopy(text, done){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); } catch(e){ toast('Could not copy'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ---------------- Export: Excel ---------------- */
+
+  document.getElementById('excelBtn').addEventListener('click', function(){
+    const visibleCols = state.columns.filter(c=>c.visible);
+    const list = getFilteredSortedVehicles();
+    const rows = [];
+
+    rows.push([ xlCell('MM Roadways', xlTitleStyle()) ]);
+    rows.push([ xlCell('Vehicle Advance Tally Report', xlSubtitleStyle()) ]);
+    rows.push([]);
+    rows.push([ xlCell('Total Asset Amount', xlKvLabelStyle()), xlCell(state.result.totals.totalAsset, xlKvValueStyle()) ]);
+    rows.push([ xlCell('Total Omni Amount', xlKvLabelStyle()), xlCell(state.result.totals.totalOmni, xlKvValueStyle()) ]);
+    rows.push([ xlCell('Overall Difference', xlKvLabelStyle()), xlCell(state.result.totals.overallDiff, xlKvValueStyle()) ]);
+    rows.push([]);
+
+    // Header row — same columns, same order as the on-screen table
+    rows.push([ xlCell('#', xlHeadStyle()) ].concat(visibleCols.map(c=>xlCell(c.label, xlHeadStyle()))));
+
+    // Body rows — same data as the on-screen table, each cell boxed with a border
+    list.forEach((v,i)=>{
+      const mismatch = v.status === 'Mismatch';
+      const stripe = i % 2 === 1;
+      const row = [ xlCell(i+1, xlBodyStyle(mismatch, stripe)) ];
+      visibleCols.forEach(c=>{
+        if (c.key==='assetVehicleNo') row.push(xlCell(v.vehicleNo, xlBodyStyle(mismatch, stripe)));
+        else if (c.key==='omniVehicleNo') row.push(xlCell(v.knownVehicle ? v.vehicleNo : 'Unknown plate', xlBodyStyle(mismatch, stripe)));
+        else if (c.key==='assetTotal') row.push(xlCell(v.assetTotal, xlNumStyle(mismatch, stripe)));
+        else if (c.key==='omniTotal') row.push(xlCell(v.omniTotal, xlNumStyle(mismatch, stripe)));
+        else if (c.key==='diff') row.push(xlCell(v.diff, xlNumStyle(mismatch, stripe)));
+        else if (c.key==='status') row.push(xlCell(v.status, xlBodyStyle(mismatch, stripe)));
+      });
+      rows.push(row);
+    });
+
+    if (state.result.unassigned.length){
+      rows.push([]);
+      rows.push([ xlCell('Unmatched Omni entries (manual review)', xlSubtitleStyle()) ]);
+      rows.push(['Date','Description','Remarks','Amount'].map(h=>xlCell(h, xlHeadStyle())));
+      state.result.unassigned.forEach((r,i)=>{
+        const stripe = i % 2 === 1;
+        rows.push([
+          xlCell(r.transactionDate, xlBodyStyle(false, stripe)),
+          xlCell(r.description, xlBodyStyle(false, stripe)),
+          xlCell(r.remarks, xlBodyStyle(false, stripe)),
+          xlCell(r.debit, xlNumStyle(false, stripe))
+        ]);
+      });
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:4},{wch:18},{wch:18},{wch:16},{wch:16},{wch:12},{wch:10}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Vehicle Tally');
+    XLSX.writeFile(wb, 'Vehicle_Advance_Tally.xlsx');
+    toast('Excel file downloaded');
+  });
+
+  /* ---------------- Export: PDF ---------------- */
+
+  document.getElementById('pdfBtn').addEventListener('click', function(){
+    const visibleCols = state.columns.filter(c=>c.visible);
+    const list = getFilteredSortedVehicles();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'landscape', unit:'pt' });
+
+    doc.setFontSize(14);
+    doc.text('Vehicle Advance Tally Report', 40, 36);
+    doc.setFontSize(9);
+    doc.text(
+      `Total Asset Amount: ${fmtMoney(state.result.totals.totalAsset)}    ` +
+      `Total Omni Amount: ${fmtMoney(state.result.totals.totalOmni)}    ` +
+      `Difference: ${fmtMoney(state.result.totals.overallDiff)}`,
+      40, 54
+    );
+
+    const head = [['#'].concat(visibleCols.map(c=>c.label))];
+    const body = list.map((v,i)=>{
+      const row = [i+1];
+      visibleCols.forEach(c=>{
+        if (c.key==='assetVehicleNo') row.push(v.vehicleNo);
+        else if (c.key==='omniVehicleNo') row.push(v.knownVehicle ? v.vehicleNo : 'Unknown plate');
+        else if (c.key==='assetTotal') row.push(fmtNum(v.assetTotal));
+        else if (c.key==='omniTotal') row.push(fmtNum(v.omniTotal));
+        else if (c.key==='diff') row.push(fmtNum(v.diff));
+        else if (c.key==='status') row.push(v.status);
+      });
+      return row;
+    });
+    const statusByRow = list.map(v=>v.status);
+
+    doc.autoTable({
+      head, body,
+      startY: 68,
+      styles:{ fontSize:8, cellPadding:4 },
+      headStyles:{ fillColor:[14,14,13], textColor:[247,247,245] },
+      didParseCell: function(data){
+        if (data.section === 'body' && statusByRow[data.row.index] === 'Mismatch'){
+          data.cell.styles.fillColor = [253, 236, 235];
+          data.cell.styles.textColor = [163, 36, 26];
+        }
+      }
+    });
+
+    if (state.result.unassigned.length){
+      const y = doc.lastAutoTable.finalY + 24;
+      doc.setFontSize(11);
+      doc.text('Unmatched Omni entries — manual review', 40, y);
+      doc.autoTable({
+        head: [['Date','Description','Remarks','Amount']],
+        body: state.result.unassigned.map(r=>[r.transactionDate, r.description, r.remarks, fmtNum(r.debit)]),
+        startY: y + 8,
+        styles:{ fontSize:8, cellPadding:4 },
+        headStyles:{ fillColor:[14,14,13], textColor:[247,247,245] }
+      });
+    }
+
+    doc.save('Vehicle_Advance_Tally.pdf');
+    toast('PDF downloaded');
+  });
+
+  /* ---------------- Export: Image ---------------- */
+
+  document.getElementById('imgBtn').addEventListener('click', function(){
+    exportMarkupAsImage(buildMainExportMarkup(), 'Vehicle_Advance_Tally.png');
+  });
+
+  /* ---------------- Init ---------------- */
+
+  wireFileSlot(1);
+  wireFileSlot(2);
+  document.getElementById('reconcileBtn').addEventListener('click', runReconcile);
+
+})();
+
+</script>
+</body>
+</html>
