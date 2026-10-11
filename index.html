@@ -477,10 +477,7 @@
   .expand-cell{ width:26px; text-align:center; color:var(--text-muted); font-family:var(--mono); }
   tr.detail-row{ display:none; }
 
-  /* Off-screen container built specifically for Image export: a fixed, wide
-     (landscape-style) layout with compact font sizes and a totals summary
-     pinned at the top, so the downloaded PNG is a single, fully-legible
-     snapshot of every row with no cropping and no on-screen scrolling. */
+  /* Off-screen container used for Image export */
   .img-export-wrap{
     position:fixed;
     top:0;
@@ -751,8 +748,13 @@
 /* ===== core.js ===== */
 /* ============================================================
    CORE reconciliation logic — pure functions, no DOM/browser deps
-   so it can be unit-tested in Node before being embedded.
    ============================================================ */
+
+/* ---- SWITCH ----
+   false = entries with NO vehicle number in Remarks are NEVER auto-assigned
+           to a vehicle by amount; they go to "Unmatched — manual review".
+   true  = old behaviour (guess by same amount / combined amount).          */
+const ENABLE_AUTO_AMOUNT_MATCH = false;
 
 function normKey(s){
   return (s==null?'':String(s)).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -818,7 +820,6 @@ function findHeaderRowIndex(rows2d){
   return -1;
 }
 
-/* rows2d: array of arrays (raw sheet). Returns {role, rows, warnings} */
 function parseSheet(rows2d){
   const headerIdx = findHeaderRowIndex(rows2d);
   if (headerIdx === -1){
@@ -873,7 +874,6 @@ function parseSheet(rows2d){
   return { role, rows, warnings: [] };
 }
 
-/* Try all sheets in a workbook (array of {name, rows2d}), return the best matching one for expected role */
 function parseWorkbookSheets(sheets, expectedRole){
   let best = null;
   for (const sheet of sheets){
@@ -902,6 +902,29 @@ function extractLast4FromText(text){
   return { last4:null, matchType:null };
 }
 
+/* All possible "last 4 digit" references found in Remarks:
+   1) full plate (TN 52 AC 4233 / TN52AC4233)  -> last 4 of the plate
+   2) any standalone 4-digit number (4233, "veh 4233", "AC4233")
+   Caller decides which one really belongs to a vehicle in the asset file. */
+const STRICT_PLATE_RE = /\b[A-Z]{2}\s?-?\s?\d{2}\s?[A-Z]{1,3}\s?-?\s?\d{4}\b/i;
+
+function extractLast4Candidates(text){
+  const out = [];
+  if (!text) return out;
+  const t = String(text);
+  const plate = t.match(PLATE_RE);
+  if (plate){
+    const l4 = last4Of(plate[0]);
+    if (l4) out.push({ last4:l4, matchType:'plate' });
+  }
+  const re = /(?<!\d)(\d{4})(?!\d)/g;
+  let m;
+  while ((m = re.exec(t)) !== null){
+    out.push({ last4:m[1], matchType:'digits' });
+  }
+  return out;
+}
+
 /* ---------- Combination helper for auto-reconcile ---------- */
 
 function combosOfIndices(n, k){
@@ -921,12 +944,10 @@ function combosOfIndices(n, k){
 
 /* ============================================================
    MAIN reconciliation pipeline
-   assetRows: from parseSheet role 'fuel'
-   accountRows: from parseSheet role 'account'
    ============================================================ */
 function reconcile(assetRows, accountRows){
   // 1. Build vehicle master from asset rows
-  const master = {}; // key -> {vehicleNo, last4, assetTotal, entries:[]}
+  const master = {};
   for (const row of assetRows){
     const key = row.vehicleKey;
     if (!master[key]){
@@ -936,43 +957,52 @@ function reconcile(assetRows, accountRows){
     master[key].entries.push(row);
   }
 
-  // last4 index (may collide)
   const last4Index = {};
   Object.values(master).forEach(v=>{
     if (!v.last4) return;
     (last4Index[v.last4] = last4Index[v.last4] || []).push(v.vehicleKey);
   });
 
-  // 2. Match account rows against master via remarks (primary) then description (fallback)
-  const omniEntries = {}; // vehicleKey -> [rows]
-  const unknownVehicleEntries = {}; // last4 (not in master) -> [rows]
-  const noRefPool = []; // rows with no vehicle reference at all
+  // 2. Match account rows against master via Remarks only
+  const omniEntries = {};
+  const unknownVehicleEntries = {};
+  const noRefPool = [];
 
   for (const row of accountRows){
-    // Only the Remarks field is trusted for vehicle identification. The Description field
-    // in bank/OmniCard exports often carries the *sender's own* linked vehicle tag (e.g.
-    // "Add Money | Name | phone | TN52AD4355"), which is not necessarily the vehicle the
-    // expense is actually for — using it as a fallback causes false cross-vehicle matches.
-    const ext = extractLast4FromText(row.remarks);
+    // Only Remarks is used. Its last-4 digits are compared with the last-4 of each
+    // asset-file vehicle number. A 4-digit number that is not any asset vehicle's
+    // last-4 (e.g. an amount like 5000) is ignored.
+    const cands = extractLast4Candidates(row.remarks);
+    const hit = cands.find(c => last4Index[c.last4] && last4Index[c.last4].length);
 
-    if (ext.last4 && last4Index[ext.last4] && last4Index[ext.last4].length){
-      // disambiguate collisions: prefer a vehicle whose full normalized plate appears in the remarks text
-      let vehicleKey = last4Index[ext.last4][0];
-      if (last4Index[ext.last4].length > 1){
+    if (hit){
+      const list = last4Index[hit.last4];
+      let vehicleKey = null;
+      if (list.length === 1){
+        vehicleKey = list[0];
+      } else {
+        // two+ vehicles share these last-4 digits: need full plate in remarks to decide
         const text = normKey(row.remarks||'');
-        const exact = last4Index[ext.last4].find(k => text.includes(k));
-        if (exact) vehicleKey = exact;
+        vehicleKey = list.find(k => text.includes(k)) || null;
       }
-      (omniEntries[vehicleKey] = omniEntries[vehicleKey] || []).push(Object.assign({}, row, { matchType: ext.matchType }));
-    } else if (ext.last4){
-      // has a vehicle-like reference but no such vehicle in the asset file
-      (unknownVehicleEntries[ext.last4] = unknownVehicleEntries[ext.last4] || []).push(Object.assign({}, row, { matchType: ext.matchType }));
+      if (vehicleKey){
+        (omniEntries[vehicleKey] = omniEntries[vehicleKey] || []).push(Object.assign({}, row, { matchType: hit.matchType }));
+      } else {
+        noRefPool.push(row); // ambiguous -> manual review
+      }
     } else {
-      noRefPool.push(row);
+      const strict = String(row.remarks||'').match(STRICT_PLATE_RE);
+      const unkL4 = strict ? last4Of(strict[0]) : null;
+      if (unkL4){
+        // a real-looking plate that is not in the asset file
+        (unknownVehicleEntries[unkL4] = unknownVehicleEntries[unkL4] || []).push(Object.assign({}, row, { matchType:'plate' }));
+      } else {
+        noRefPool.push(row);
+      }
     }
   }
 
-  // 3. Compute running diff per vehicle (asset - matched omni so far)
+  // 3. Running diff per vehicle
   function currentOmniTotal(key){
     return (omniEntries[key]||[]).reduce((s,r)=>s+r.debit,0);
   }
@@ -981,16 +1011,14 @@ function reconcile(assetRows, accountRows){
     return Math.round((a - currentOmniTotal(key)) * 100) / 100;
   }
 
-  // 4a. Auto-reconcile pass A: exact same-value 1-1 pairing between pool items and vehicle diffs
   let poolIdx = noRefPool.map((r,i)=>i);
   const usedPool = new Set();
-  const autoAssignments = []; // {vehicleKey, rowIndex(in noRefPool), method}
+  const autoAssignments = [];
 
   function activeVehicleKeys(){
     return Object.keys(master).filter(k => Math.abs(diffFor(k)) > 0.01);
   }
 
-  // group remaining pool by rounded value
   function poolGroupsByValue(){
     const g = {};
     poolIdx.filter(i=>!usedPool.has(i)).forEach(i=>{
@@ -1000,7 +1028,8 @@ function reconcile(assetRows, accountRows){
     return g;
   }
 
-  {
+  // 4a. Pass A: same-value 1-1 pairing (DISABLED unless ENABLE_AUTO_AMOUNT_MATCH = true)
+  if (ENABLE_AUTO_AMOUNT_MATCH){
     const targetGroups = {};
     activeVehicleKeys().forEach(k=>{
       const d = diffFor(k);
@@ -1024,9 +1053,8 @@ function reconcile(assetRows, accountRows){
     });
   }
 
-  // 4b. Auto-reconcile pass B: subset-sum (size 2..3) of remaining pool matching a remaining target diff,
-  // only committed when the match is unambiguous (single candidate combo) and doesn't reuse items.
-  {
+  // 4b. Pass B: subset-sum (size 2..3) (DISABLED unless ENABLE_AUTO_AMOUNT_MATCH = true)
+  if (ENABLE_AUTO_AMOUNT_MATCH){
     const MAX_COMBO = 3;
     let changed = true;
     let iterations = 0;
@@ -1038,10 +1066,9 @@ function reconcile(assetRows, accountRows){
       const targets = activeVehicleKeys().filter(k => diffFor(k) > 0.01);
       if (!targets.length) break;
 
-      // candidate combos: value(rounded) -> [{comboAbsIndices}]
-      const comboCandidatesByTarget = {}; // vehicleKey -> [ [absIdx,...], ... ]
+      const comboCandidatesByTarget = {};
       const n = remainingIdx.length;
-      if (n <= 14){ // cap for performance/sanity
+      if (n <= 14){
         for (let k=2;k<=Math.min(MAX_COMBO, n);k++){
           const combos = combosOfIndices(n, k);
           for (const combo of combos){
@@ -1056,7 +1083,6 @@ function reconcile(assetRows, accountRows){
         }
       }
 
-      // commit only vehicles with exactly one candidate combo, and combo items not used by other committed combos this round
       const claimed = new Set();
       const toCommit = [];
       Object.keys(comboCandidatesByTarget).forEach(vk=>{
@@ -1101,7 +1127,6 @@ function reconcile(assetRows, accountRows){
     });
   });
 
-  // vehicles referenced only in omni file with an actual (but unknown) plate — surface separately too
   Object.keys(unknownVehicleEntries).forEach(l4=>{
     const entries = unknownVehicleEntries[l4];
     const omniTotal = Math.round(entries.reduce((s,r)=>s+r.debit,0)*100)/100;
@@ -1133,8 +1158,6 @@ function reconcile(assetRows, accountRows){
   return { vehicles, unassigned: stillUnassigned, totals };
 }
 
-/* Namespace export — used as `CORE` by the browser app layer, and via
-   module.exports when running under Node for testing. */
 var CORE = { normKey, last4Of, toNum, cleanHeader, parseSheet, parseWorkbookSheets, extractLast4FromText, reconcile };
 if (typeof module !== 'undefined'){
   module.exports = CORE;
@@ -1142,17 +1165,12 @@ if (typeof module !== 'undefined'){
 
 
 /* ===== app.js ===== */
-/* ============================================================
-   Browser app layer — file I/O, rendering, exports, event wiring.
-   Depends on: CORE (core.js, inlined above this script), XLSX,
-   html2canvas, jsPDF + autoTable, and the DOM structure in index.html
-   ============================================================ */
 (function(){
   'use strict';
 
   const state = {
-    files: { 1:null, 2:null },      // { workbook, filename, parsed:{role,rows} } — role is auto-detected
-    result: null,                    // output of CORE.reconcile
+    files: { 1:null, 2:null },
+    result: null,
     columns: [
       { key:'assetVehicleNo', label:'Asset Vehicle', visible:true, sortable:true },
       { key:'omniVehicleNo', label:'Omni Vehicle', visible:true, sortable:true },
@@ -1166,7 +1184,7 @@ if (typeof module !== 'undefined'){
     searchQuery:'',
     mismatchOnly:false,
     openDetailKeys: new Set(),
-    resolvedKeys: new Set()   // vehicleKeys of Mismatch rows the user has ticked as checked/accounted-for
+    resolvedKeys: new Set()
   };
 
   const collator = new Intl.Collator(undefined, { numeric:true, sensitivity:'base' });
@@ -1180,12 +1198,7 @@ if (typeof module !== 'undefined'){
     return (n||0).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
   }
 
-  /* "Resolved" checkbox never edits the underlying reconciliation data —
-     v.diff / v.status always keep the real computed numbers so re-checking
-     the box, re-sorting, or a fresh reconcile is never lossy. These three
-     helpers are the single place that turns a tallied row into what the
-     table/exports actually display: Difference shown as 0.00 (the real
-     figure is kept in the title tooltip) and Status shown as "Tallied". */
+  /* "Resolved" never edits underlying data; these helpers decide what is displayed. */
   function isTallied(v){
     return v.status === 'Mismatch' && state.resolvedKeys.has(v.vehicleKey);
   }
@@ -1204,7 +1217,7 @@ if (typeof module !== 'undefined'){
     toast._h = setTimeout(()=>t.classList.remove('show'), 2200);
   }
 
-  /* ---------------- Excel styling helpers (bordered table, matches on-screen look) ---------------- */
+  /* ---------------- Excel styling helpers ---------------- */
 
   const XL_THIN = { style:'thin', color:{ rgb:'B0AFA8' } };
   const XL_BOX = { top:XL_THIN, bottom:XL_THIN, left:XL_THIN, right:XL_THIN };
@@ -1280,9 +1293,6 @@ if (typeof module !== 'undefined'){
             const rows2d = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
             return { name, rows2d };
           });
-          // No manual report-type selector any more — the report type
-          // (Fuel Check / Asset vs. Accounts) is detected purely from
-          // the file's own columns.
           const parsed = CORE.parseWorkbookSheets(sheets, null);
 
           if (parsed.role === 'unknown' || !parsed.rows.length){
@@ -1366,13 +1376,7 @@ if (typeof module !== 'undefined'){
     renderUnassigned();
   }
 
-  /* ---------------- Manual assignment: unmatched Omni entries -> a real vehicle ----------------
-     Auto-matching only works when Remarks carries a vehicle plate/last-4, or when a
-     leftover amount lines up exactly. Anything left over — plain-text remarks, or a
-     plate that isn't in the asset file at all — has to be pointed at the right vehicle
-     by hand. These helpers do that pointing, then recompute that vehicle's own totals
-     (never the raw uploaded numbers) so Total Asset Amount stops showing 0 once the
-     entry is actually attached to a vehicle that has real asset data. */
+  /* ---------------- Manual assignment helpers ---------------- */
 
   function knownVehicleOptionsHtml(excludeKey){
     return state.result.vehicles
@@ -1397,8 +1401,6 @@ if (typeof module !== 'undefined'){
     r.totals.vehicleCount = r.vehicles.length;
   }
 
-  /* Row from the "Unmatched Omni entries" pool (no vehicle reference in Remarks at all) —
-     attach it to the vehicle the user picked and drop it out of the unassigned list. */
   function assignUnassignedToVehicle(idx, targetKey){
     const list = state.result.unassigned;
     const entry = list[idx];
@@ -1413,10 +1415,6 @@ if (typeof module !== 'undefined'){
     renderAll();
   }
 
-  /* Pseudo-vehicle row like "•••• 0339 (not in asset file)" — its Omni entries did
-     carry a plate/last-4, but that plate isn't in the asset master, so it can never
-     show a real Total Asset Amount on its own. Merging it into the correct real
-     vehicle moves its Omni entries there and removes the pseudo row entirely. */
   function mergeUnknownVehicleIntoKnown(unknownKey, targetKey){
     const vehicles = state.result.vehicles;
     const idx = vehicles.findIndex(v=>v.vehicleKey===unknownKey);
@@ -1434,11 +1432,6 @@ if (typeof module !== 'undefined'){
     renderAll();
   }
 
-  /* Sum of |diff| across Mismatch rows, split into what's still pending vs
-     what the user has ticked as "Resolved" via the checkbox next to the
-     Status badge. Ticking a row subtracts its diff from the pending figure
-     shown in the summary bar — nothing here changes the underlying report,
-     it's purely a manual-review tracker. */
   function computeMismatchStats(){
     const mismatches = state.result.vehicles.filter(v=>v.status==='Mismatch');
     const total = mismatches.reduce((s,v)=>s+Math.abs(v.diff),0);
@@ -1597,10 +1590,6 @@ if (typeof module !== 'undefined'){
       });
     });
 
-    /* Resolve checkbox: ticking it marks that vehicle's mismatch as
-       accounted-for and subtracts its amount from the "Mismatch Amount
-       (Pending)" summary stat. Clicks on the checkbox/label must not
-       bubble up and toggle the row's detail-expand. */
     tbody.querySelectorAll('.resolveCb').forEach(cb=>{
       cb.addEventListener('click', e=> e.stopPropagation());
       cb.addEventListener('change', function(){
@@ -1616,10 +1605,6 @@ if (typeof module !== 'undefined'){
       lbl.addEventListener('click', e=> e.stopPropagation());
     });
 
-    /* Unknown-plate rows ("•••• 0339 — not in asset file"): pick the real
-       vehicle from the dropdown, tick "Assign", and its Omni entries move
-       onto that vehicle — the pseudo row disappears and Total Asset Amount
-       stops showing 0 because it's now pulling from a real vehicle. */
     tbody.querySelectorAll('.mergeSelect').forEach(sel=>{
       sel.addEventListener('click', e=> e.stopPropagation());
       sel.addEventListener('change', e=> e.stopPropagation());
@@ -1645,8 +1630,9 @@ if (typeof module !== 'undefined'){
     if (!mt) return '';
     if (mt==='plate') return '';
     if (mt==='digits') return '<span class="tag-auto">last-4 match</span>';
-    if (mt==='auto-same') return '<span class="tag-auto">auto — no ref in remarks</span>';
-    if (mt==='auto-sum') return '<span class="tag-auto">auto — combined, no ref in remarks</span>';
+    if (mt==='auto-same') return '<span class="tag-auto">⚠ guessed by amount only — verify</span>';
+    if (mt==='auto-sum') return '<span class="tag-auto">⚠ guessed by combined amount — verify</span>';
+    if (mt==='manual') return '<span class="tag-auto">manually assigned</span>';
     return '';
   }
 
@@ -1678,7 +1664,7 @@ if (typeof module !== 'undefined'){
     const vehicleOpts = knownVehicleOptionsHtml();
     sec.innerHTML = `
       <div class="section-title">Unmatched Omni entries — needs manual review <span class="count">(${list.length})</span></div>
-      <div class="helptext">These entries have no vehicle reference in Remarks, and no combination of them lined up exactly with a leftover balance on any vehicle. Pick the correct vehicle and tick "Add" to move an entry into the main table, or check them manually.</div>
+      <div class="helptext">These entries have no vehicle reference in Remarks, so they are not assigned automatically. Pick the correct vehicle and tick "Add" to move an entry into the main table, or check them manually.</div>
       <div class="mini-toolbar">
         <button class="tbtn" id="uCopyBtn">Copy</button>
         <button class="tbtn" id="uExcelBtn">Excel</button>
@@ -1784,10 +1770,6 @@ if (typeof module !== 'undefined'){
     return `<div class="iw-stat${bad?' bad':''}"><div class="iw-k">${esc(label)}</div><div class="iw-v">${esc(value)}</div></div>`;
   }
 
-  /* Builds the markup for the main tally image export: title + a totals bar
-     (Total Asset / Total Omni / Difference / Unmatched) pinned at the top,
-     followed by the full currently-filtered table — every visible column,
-     every row, no horizontal scrolling. */
   function buildMainExportMarkup(){
     const r = state.result;
     const visibleCols = state.columns.filter(c=>c.visible);
@@ -1833,9 +1815,6 @@ if (typeof module !== 'undefined'){
     `;
   }
 
-  /* Builds the markup for the unmatched/manual-review image export: title +
-     a totals bar (Total Unmatched Amount / Entries) at the top, then the
-     full list. */
   function buildUnassignedExportMarkup(){
     const list = state.result.unassigned;
     const total = Math.round(list.reduce((s,r)=>s+r.debit,0)*100)/100;
@@ -1864,9 +1843,6 @@ if (typeof module !== 'undefined'){
     `;
   }
 
-  /* Renders the given markup into an off-screen, fixed-width (landscape-style)
-     wrapper so the whole report — totals bar plus every row, at a compact
-     font size — is captured into one single PNG with nothing cropped. */
   function exportMarkupAsImage(markupHtml, filename){
     toast('Rendering image…');
     const wrap = document.createElement('div');
@@ -1904,8 +1880,6 @@ if (typeof module !== 'undefined'){
       });
     });
   }
-
-
 
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1981,10 +1955,8 @@ if (typeof module !== 'undefined'){
     rows.push([ xlCell('Overall Difference', xlKvLabelStyle()), xlCell(state.result.totals.overallDiff, xlKvValueStyle()) ]);
     rows.push([]);
 
-    // Header row — same columns, same order as the on-screen table
     rows.push([ xlCell('#', xlHeadStyle()) ].concat(visibleCols.map(c=>xlCell(c.label, xlHeadStyle()))));
 
-    // Body rows — same data as the on-screen table, each cell boxed with a border
     list.forEach((v,i)=>{
       const mismatch = v.status === 'Mismatch';
       const tallied = isTallied(v);
